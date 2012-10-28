@@ -121,7 +121,6 @@ static marker **get_markers(array_list_t *variants, const int num_samples,
 //         } else {
 //             stats->num_alleles = num_alternates + 1;
 //         }
-        //LOG_DEBUG_F("num alternates = %d\tnum_alleles = %d\n", num_alternates, stats->num_alleles);
 
         // Create lists of allele and genotypes counters and frequencies
         /*stats->alleles_count = (int*) calloc (stats->num_alleles, sizeof(int));
