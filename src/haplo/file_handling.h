@@ -23,6 +23,9 @@
 /** CUSTOM HEADERS */
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
+#include <bioformats/ped/ped_read.h>
+#include <bioformats/ped/ped_file.h>
+#include <bioformats/ped/ped_file_structure.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
 #include <commons/file_utils.h>
@@ -41,15 +44,15 @@
 //bool get_markers_array_new(array_list_t *all_markers, const conf_params *cparams,
 //		const user_params *uparams, unsigned int *num_samples);
 
-bool get_markers_array(array_list_t *all_markers, const conf_params *cparams,
-		const user_params *uparams, unsigned int  *num_samples);
+bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *share_data,
+		const haplo_options_data_t *haplo_data, unsigned int  *num_samples);
 
 /** @return char* As many array of chars as the number of elements in a block. The representation is
  * actually a matrix encoded as an array.
  * This is not really a real char array. We need its small dimension (8b) for storing the data associated with a sample
 	 * First 4 bits are the first base, next 4 are the second base of a SNP */
-static marker **get_markers(array_list_t *variants, const int num_samples,
-		const user_params *params);
+static marker **get_markers(array_list_t *variants, const unsigned int num_samples,
+		const haplo_options_data_t *params);
 
 /**
  * VCF files won't tell you the base for each allele in the SNP, instead they are giving a position
@@ -74,7 +77,7 @@ static unsigned char base_to_int(char allele);
  * and user set limits for each one of them. If the limit is broken then the rating is subtracted with a certain value
  * @return The overall accumulated result of the rating after it's params were compared with the user's ones
  */
-inline static int calc_rating(double genopct, double pval, int menderr, double maf, const user_params *params);
+inline static int calc_rating(double genopct, double pval, int menderr, double maf, const haplo_options_data_t *params);
 
 /**
  * Check if a chromosome is X; It checks the input against a predefined list of values representing X
@@ -84,11 +87,10 @@ inline static int calc_rating(double genopct, double pval, int menderr, double m
 inline static bool is_x(const char *chromosome);
 
 
-inline static double get_geno_percent(double called,
-		double missing);
+inline static double get_geno_percent(double called, double missing);
 
 static double get_pvalue(const uint32_t *parent_hom, size_t parent_hom_len, uint32_t parent_het);
 
-static double hwCalculate(uint32_t obsAA, uint32_t obsAB, uint32_t obsBB);
+static double hw_calculate(uint32_t obsAA, uint32_t obsAB, uint32_t obsBB);
 
 #endif /* FILE_HANDLING_H_ */

@@ -8,10 +8,12 @@
       <itemPath>file_handling.h</itemPath>
       <itemPath>globals.h</itemPath>
       <itemPath>ld.h</itemPath>
+      <itemPath>main_haplo.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
                    projectFiles="true">
+      <itemPath>haplo.conf</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
@@ -19,7 +21,7 @@
       <itemPath>error.c</itemPath>
       <itemPath>file_handling.c</itemPath>
       <itemPath>ld.c</itemPath>
-      <itemPath>main.c</itemPath>
+      <itemPath>main_haplo.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -45,8 +47,11 @@
           <incDir>
             <pElem>../../libs/bioinfo-libs</pElem>
             <pElem>../../libs/common-libs</pElem>
+            <pElem>..</pElem>
+            <pElem>/usr/local/include</pElem>
+            <pElem>/usr/include</pElem>
           </incDir>
-          <commandLine>-lcurl -Wl,-Bsymbolic-functions -lcprops -fopenmp -lm -lxml2 -std=gnu99</commandLine>
+          <commandLine>-lcurl -Wl,-Bsymbolic-functions -lcprops -fopenmp -lm -lxml2 -std=gnu99 -largtable2 -lconfig</commandLine>
         </cTool>
         <ccTool>
           <incDir>
@@ -81,6 +86,11 @@
             <linkerLibFileItem>../../libs/bioinfo-libs/bioformats/gff/gff_read.o</linkerLibFileItem>
             <linkerLibFileItem>../../libs/bioinfo-libs/bioformats/gff/gff_reader.o</linkerLibFileItem>
             <linkerLibFileItem>../../libs/bioinfo-libs/bioformats/gff/gff_write.o</linkerLibFileItem>
+            <linkerLibLibItem>cprops</linkerLibLibItem>
+            <linkerLibLibItem>config</linkerLibLibItem>
+            <linkerLibLibItem>argtable2</linkerLibLibItem>
+            <linkerLibFileItem>../../global_options.o</linkerLibFileItem>
+            <linkerLibFileItem>../../hpg_variant_utils.o</linkerLibFileItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>

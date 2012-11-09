@@ -7,12 +7,57 @@
 
 #include "file_handling.h"
 
-bool get_markers_array(array_list_t *all_markers, const conf_params *cparams,
-		const user_params *uparams, unsigned int  *num_samples)
+bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *share_data,
+		const haplo_options_data_t *haplo_data, unsigned int  *num_samples)
 {
 	int ret_code;
+        list_t *read_list = (list_t*) malloc (sizeof(*read_list));
+        int header_written = 0;
 
-    vcf_file_t* vcf_file_p = vcf_open(cparams->file_path, cparams->max_simultaneous_batches);
+        int i = 0;
+        int add_ret_code = 0;
+        vcf_batch_t *batch;
+        list_item_t* item = NULL;
+        ped_batch_t *batch = NULL;
+        list_item_t *batch_item = NULL;
+    
+    // STEP 1 - parse PED file and get the individuals with their sex and parents
+    ped_file_t* file = ped_open(share_data->ped_filename);
+    
+    ret_code = ped_read_batches(read_list, share_data->batch_lines, file);
+    
+    while ( (item = list_remove_item(read_list)) != NULL ) {
+            batch = (ped_batch_t*) item->data_p;
+            if (i % 200 == 0) 
+            {
+                int debug = 1;
+                LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", i, omp_get_thread_num(), 
+                    ((ped_batch_t*) item->data_p)->length, ((ped_batch_t*) item->data_p)->max_length);
+            }
+            
+            while ( (batch_item = list_remove_item_async(batch)) != NULL) {
+                add_ret_code = add_ped_record(batch_item->data_p, file);
+                if (add_ret_code > 0) {
+                    LOG_ERROR_F("%s - %s\n", ((ped_record_t*) batch_item->data_p)->family_id, get_ped_semantic_error_msg(add_ret_code));
+                }
+            }
+            
+            ped_batch_free(item->data_p);
+            list_item_free(item);
+            i++;
+        }
+        
+       
+     list_decr_writers(read_list);
+    
+    //STEP 2 - Resolve families and approve the list of individuals to be used 
+    //         in computation, the rest of them being discarded
+    
+    
+    // STEP 3 - Parse the VCF and get the samples (take into consideration the
+    //          previous list of allowed samples after creating the families
+    
+    vcf_file_t* vcf_file_p = vcf_open(share_data->vcf_filename, share_data->max_batches);
     array_list_t *samples_names = vcf_file_p->samples_names;
 //#pragma omp parallel sections //private(start, stop, total)
 //{
@@ -22,7 +67,7 @@ bool get_markers_array(array_list_t *all_markers, const conf_params *cparams,
         // Reading
         //start = omp_get_wtime();
 
-        ret_code = vcf_parse_batches(cparams->batch_size, vcf_file_p, 1);
+        ret_code = vcf_parse_batches(share_data->batch_lines, vcf_file_p, 1);
         notify_end_reading(vcf_file_p);
 
        // stop = omp_get_wtime();
@@ -38,12 +83,9 @@ bool get_markers_array(array_list_t *all_markers, const conf_params *cparams,
 
         //start = omp_get_wtime();
 
-        int header_written = 0;
-
-        int i = 0;
-        vcf_batch_t *batch;
+        
         while ( (batch = fetch_vcf_batch(vcf_file_p)) != NULL ) {
-        	marker **segment_markers = get_markers(batch->records, samples_names->size, uparams);
+        	marker **segment_markers = get_markers(batch->records, samples_names->size, haplo_data);
         	// Heck knows why it's impossible to get array's size directly with the indirection operator. level 2
         	array_list_t *temp = batch->records;
         	size_t num_rec = temp->size;
@@ -63,8 +105,8 @@ bool get_markers_array(array_list_t *all_markers, const conf_params *cparams,
     return true;
 }
 
-static marker **get_markers(array_list_t *variants, const int num_samples,
-		const user_params *params) {
+static marker **get_markers(array_list_t *variants, const unsigned int num_samples,
+		const haplo_options_data_t *params) {
 	//int num_samples;
     char *copy_buf, *copy_buf2, *token, *sample;
     char *save_strtok, *str_dup_buf;
@@ -130,7 +172,7 @@ static marker **get_markers(array_list_t *variants, const int num_samples,
 
         // Get position where GT is in sample
         str_dup_buf = (char *) strdup(record->format);
-        gt_pos = get_field_position_in_format("GT", str_dup_buf);
+        gt_pos = 0;//get_field_position_in_format("GT", str_dup_buf);
         LOG_DEBUG_F("Genotype position = %d\n", gt_pos);
         if (gt_pos < 0) { continue; }   // This variant has no GT field
         (result[i])->samples = malloc(num_samples * sizeof(*((result[i])->samples)));
@@ -219,10 +261,10 @@ static marker **get_markers(array_list_t *variants, const int num_samples,
             // on the next 4 bits)
         	(result[i])->samples[j] = (a1 << NUM_BITS_SHIFT) + a2 ;
         }
-
+        
         // Check the type of ref allele determination required and switch if necessary
-		if (params->ref_allele_method == ALLELE_REF_HAPLOVIEW
-				&& numa2 >= numa1) {//we just exchange the first position
+		if (params->alleleref == ALLELE_REF_HAPLOVIEW
+				&& alleles_count[1] >= alleles_count[0]) {//numa2 >= numa1) {//we just exchange the first position
 			auxuc = (result[i])->reference;
 			(result[i])->reference = (result[i])->alternates[0];
 			(result[i])->alternates[0] = auxuc;
@@ -321,7 +363,7 @@ inline static bool is_x(const char *chromosome)
 		return true;
 	else
 		return false;
-}
+}/*is_x*/
 
 inline static double get_geno_percent(double called,
 		double missing)
@@ -333,26 +375,26 @@ inline static double get_geno_percent(double called,
 	}
 } /*get_geno_percent*/
 
-inline static int calc_rating(double genopct, double pval, int menderr, double maf, const user_params *params)
+inline static int calc_rating(double genopct, double pval, int menderr, double maf, const haplo_options_data_t *params)
 {
 	int rating = 0;
-	if (genopct < params->failedGenoCut){
+	if (genopct < params->fgcut){
 		rating -= 2;
 	}
-	if (pval < params->hwCut){
+	if (pval < params->hwcut){
 		rating -= 4;
 	}
-	if (menderr > params->numMendErrCut){
+	if (menderr > params->mendcut){
 		rating -= 8;
 	}
-	if (maf < params->mafCut){
+	if (maf < params->mafcut){
 		rating -= 16;
 	}
 	if (rating == 0){
 		rating = 1;
 	}
 	return rating;
-} /*getRating*/
+} /*calc_rating*/
 
 static double get_pvalue(const uint32_t *parent_hom, size_t parent_hom_len, uint32_t parent_het)
 {
@@ -369,12 +411,12 @@ static double get_pvalue(const uint32_t *parent_hom, size_t parent_hom_len, uint
 	if (homA + parent_het + homB <= 0){
 		pvalue=0;
 	}else{
-		pvalue = hwCalculate(homA, parent_het, homB);
+		pvalue = hw_calculate(homA, parent_het, homB);
 	}
 	return pvalue;
 } /*get_pvalue*/
 
- static double hwCalculate(uint32_t obsAA, uint32_t obsAB, uint32_t obsBB)
+ static double hw_calculate(uint32_t obsAA, uint32_t obsAB, uint32_t obsBB)
  {
         //Calculates exact two-sided hardy-weinberg p-value. Parameters
         //are number of genotypes, number of rare alleles observed and

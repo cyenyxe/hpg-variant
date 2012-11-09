@@ -35,9 +35,9 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/main_haplo.o \
 	${OBJECTDIR}/file_handling.o \
 	${OBJECTDIR}/error.o \
-	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/ld.o
 
 
@@ -65,6 +65,11 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo ${OBJECTFILES} ${LDLIBSOPTIONS} 
 
+${OBJECTDIR}/main_haplo.o: main_haplo.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/main_haplo.o main_haplo.c
+
 ${OBJECTDIR}/file_handling.o: file_handling.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
@@ -74,11 +79,6 @@ ${OBJECTDIR}/error.o: error.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/error.o error.c
-
-${OBJECTDIR}/main.o: main.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/main.o main.c
 
 ${OBJECTDIR}/ld.o: ld.c 
 	${MKDIR} -p ${OBJECTDIR}

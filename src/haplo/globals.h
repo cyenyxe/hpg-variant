@@ -10,6 +10,9 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <argtable2.h>
+
+#include "global_options.h"
 
 #define A_BASE (unsigned char)1
 #define T_BASE (unsigned char)4
@@ -59,6 +62,18 @@ typedef struct conf_params
 	size_t entries_per_thread;
 } conf_params;
 
+/** Multiple types of input options for the program; It is able to read from different
+ types of data sources and thus they must be handled accordingly*/
+typedef enum 
+{
+    /**Uses a VCF file to get the data set with the genes and all other options
+     and it also loads a PED file to get the sex and the parents which aren't
+     defined in the VCF standard*/
+   IN_VCF_PED,
+   /** A PED file together with a info file*/
+   IN_PED_INFO        
+} INPUT_TYPE;
+
 /** The definition of a marker which is actually a line from VCF having
  * multiple samples from different individuals */
 typedef struct marker {
@@ -84,18 +99,35 @@ typedef struct marker {
 	bool is_x;
 } marker;
 
-/** To keep the program as expandable as possible, keep all the settings that can be changed by the user
+
+#define NUM_HAPLO_OPTS 5
+/** Options used when parsing arguments from the cmd line */
+typedef struct haplo_options {
+        int num_opts;
+    
+	struct arg_int *alleleref;
+	struct arg_dbl *hwcut;// = 0.001;
+	struct arg_int *fgcut;// = 75;
+	struct arg_int *mendcut;// = 1;
+	struct arg_dbl *mafcut;// = 0.001;
+
+} haplo_options_t;
+
+/** To keep the program as easy to expand as possible, keep all the settings that can be changed by the user
  * in one place */
-typedef struct user_params {
+typedef struct haplo_options_data {
 	/** method to use when determining the reference/alternate allele; Can be ALLELE_REF_HAPLOVIEW or ALLELE_REF_VCF*/
-	int ref_allele_method;
+	int alleleref;
 
-	double hwCut;// = 0.001;
-	int failedGenoCut;// = 75;
-	int numMendErrCut;// = 1;
-	double mafCut;// = 0.001;
+	double hwcut;// = 0.001;
+        /* Failed genotype cut*/
+	int fgcut;// = 75;
+        /* Number of mendelian errors for cutting */
+	int mendcut;// = 1;
+        /* Limit for the minor allele frequency when cutting */
+	double mafcut;// = 0.001;
 
-} user_params;
+} haplo_options_data_t;
 
 /** Information about 2 markers used when creating the strong pairs */
 typedef struct marker_info {

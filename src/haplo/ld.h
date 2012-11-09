@@ -88,6 +88,8 @@ pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int 
  */
 inline static int compare(const void *markeri1, const void *markeri2);
 
+inline static int compare_asc(const void *markeri1, const void *markeri2) ;
+
 /**
  * Check if a marker's rating is above 0, meaning it is valid and it can be used in the processing;
  * @param marker_check The marker which will be checked to see if it is right

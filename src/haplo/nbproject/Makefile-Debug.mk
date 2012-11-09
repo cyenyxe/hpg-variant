@@ -35,14 +35,14 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/main_haplo.o \
 	${OBJECTDIR}/file_handling.o \
 	${OBJECTDIR}/error.o \
-	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/ld.o
 
 
 # C Compiler Flags
-CFLAGS=-lcurl -Wl,-Bsymbolic-functions -lcprops -fopenmp -lm -lxml2 -std=gnu99
+CFLAGS=-lcurl -Wl,-Bsymbolic-functions -lcprops -fopenmp -lm -lxml2 -std=gnu99 -largtable2 -lconfig
 
 # CC Compiler Flags
 CCFLAGS=
@@ -55,7 +55,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=../../libs/common-libs/commons/file_utils.o ../../libs/common-libs/commons/http_utils.o ../../libs/common-libs/commons/result.o ../../libs/common-libs/commons/string_utils.o ../../libs/common-libs/commons/system_utils.o ../../libs/common-libs/containers/array_list.o ../../libs/common-libs/containers/list.o ../../libs/common-libs/containers/log.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_file.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_file_structure.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_filters.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_ragel.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_reader.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_stats.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_util.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_write.o ../../libs/bioinfo-libs/bioformats/features/region/region.o ../../libs/bioinfo-libs/bioformats/features/region/region_table.o ../../libs/bioinfo-libs/bioformats/features/region/region_table_utils.o ../../libs/bioinfo-libs/bioformats/gff/gff_batch.o ../../libs/bioinfo-libs/bioformats/gff/gff_file.o ../../libs/bioinfo-libs/bioformats/gff/gff_read.o ../../libs/bioinfo-libs/bioformats/gff/gff_reader.o ../../libs/bioinfo-libs/bioformats/gff/gff_write.o
+LDLIBSOPTIONS=../../libs/common-libs/commons/file_utils.o ../../libs/common-libs/commons/http_utils.o ../../libs/common-libs/commons/result.o ../../libs/common-libs/commons/string_utils.o ../../libs/common-libs/commons/system_utils.o ../../libs/common-libs/containers/array_list.o ../../libs/common-libs/containers/list.o ../../libs/common-libs/containers/log.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_file.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_file_structure.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_filters.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_ragel.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_reader.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_stats.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_util.o ../../libs/bioinfo-libs/bioformats/vcf/vcf_write.o ../../libs/bioinfo-libs/bioformats/features/region/region.o ../../libs/bioinfo-libs/bioformats/features/region/region_table.o ../../libs/bioinfo-libs/bioformats/features/region/region_table_utils.o ../../libs/bioinfo-libs/bioformats/gff/gff_batch.o ../../libs/bioinfo-libs/bioformats/gff/gff_file.o ../../libs/bioinfo-libs/bioformats/gff/gff_read.o ../../libs/bioinfo-libs/bioformats/gff/gff_reader.o ../../libs/bioinfo-libs/bioformats/gff/gff_write.o -lcprops -lconfig -largtable2 ../../global_options.o ../../hpg_variant_utils.o
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
@@ -109,29 +109,33 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ../../libs/bioinfo-libs/biofor
 
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ../../libs/bioinfo-libs/bioformats/gff/gff_write.o
 
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ../../global_options.o
+
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ../../hpg_variant_utils.o
+
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/haplo ${OBJECTFILES} ${LDLIBSOPTIONS} 
 
+${OBJECTDIR}/main_haplo.o: main_haplo.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -I.. -I/usr/local/include -I/usr/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/main_haplo.o main_haplo.c
+
 ${OBJECTDIR}/file_handling.o: file_handling.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -MMD -MP -MF $@.d -o ${OBJECTDIR}/file_handling.o file_handling.c
+	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -I.. -I/usr/local/include -I/usr/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/file_handling.o file_handling.c
 
 ${OBJECTDIR}/error.o: error.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -MMD -MP -MF $@.d -o ${OBJECTDIR}/error.o error.c
-
-${OBJECTDIR}/main.o: main.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -MMD -MP -MF $@.d -o ${OBJECTDIR}/main.o main.c
+	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -I.. -I/usr/local/include -I/usr/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/error.o error.c
 
 ${OBJECTDIR}/ld.o: ld.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -MMD -MP -MF $@.d -o ${OBJECTDIR}/ld.o ld.c
+	$(COMPILE.c) -g -I../../libs/bioinfo-libs -I../../libs/common-libs -I.. -I/usr/local/include -I/usr/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/ld.o ld.c
 
 # Subprojects
 .build-subprojects:
