@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
  * hpg-variant is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * hpg-variant is distributed in the hope that it will be useful,
@@ -29,17 +29,16 @@
  * functions to read their value from a configuration file or the command line.
  */ 
 
-#include <libconfig.h>
 #include <stdlib.h>
 
-#include <argtable2.h>
-
+#include <bioformats/db/cellbase_connector.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 
 #include "error.h"
-#include "global_options.h"
-#include "main.h"
+#include "shared_options.h"
 
 /**
  * Number of options applicable to the effect tool.
@@ -50,7 +49,7 @@ typedef struct effect_options {
     int num_options;
     
     struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
-    struct arg_str *excludes; /**< Consequence types to exclude from the query. */
+    struct arg_str *excludes; /**< Comma-separated consequence types to exclude from the query. */
 } effect_options_t;
 
 /**
@@ -60,8 +59,8 @@ typedef struct effect_options {
  * services that retrieve phenotypical information, or the effects that will not be retrieved.
  */
 typedef struct effect_options_data {
-    int no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
-    char *excludes; /**< Consequence types to exclude from the query. */
+    int no_phenotypes;  /**< Flag asking not to retrieve phenotypical information. */
+    char *excludes;     /**< Comma-separated consequence types to exclude from the query. */
 } effect_options_data_t;
 
 

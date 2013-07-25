@@ -11,7 +11,7 @@
 #include <commons/argtable/argtable2.h>
 
 #include "globals.h"
-#include "global_options.h"
+#include "shared_options.h"
 #include "ld.h"
 #include "file_handling.h"
 

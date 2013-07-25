@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
  * hpg-variant is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * hpg-variant is distributed in the hope that it will be useful,
@@ -21,33 +21,48 @@
 #include "effect.h"
 #include "effect_runner.h"
 
-int effect(int argc, char *argv[], const char *configuration_file) {
-    LOG_DEBUG_F("effect called with %d args\n", argc);
+int main(int argc, char *argv[]) {
 
     /* ******************************
      * 	    Modifiable options	    *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     effect_options_t *effect_options = new_effect_cli_options();
+    void **argtable;
 
+    // If no arguments or only -h / --help are provided, show usage
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
+        show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, 30);
+        return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("Effect");
+        return 0;
+    }
 
     /* ******************************
-     * 	    Execution steps	        *
+     * 	    Execution steps	    *
      * ******************************/
 
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-effect.log", "w");
+    
+    array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
+    const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
+    
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration(configuration_file, shared_options);
+    int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_effect_configuration(configuration_file, effect_options, shared_options);
-    LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
+        LOG_FATAL("Configuration file read with errors\n");
         return CANT_READ_CONFIG_FILE;
     }
 
     // Step 2: parse command-line options
-    void **argtable = parse_effect_options(argc, argv, effect_options, shared_options);
-
+    argtable = parse_effect_options(argc, argv, effect_options, shared_options);
+    
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
     // If not, return error code!
@@ -60,12 +75,17 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-effect.log", "w");
+    
     // Step 5: Create the web service request with all the parameters
     const int num_urls = 3;
     char **urls = malloc (num_urls * sizeof(char*));
-    urls[0] = compose_effect_ws_request("genomic/variant", "consequence_type", shared_options_data);
-    urls[1] = compose_effect_ws_request("feature/snp", "phenotype", shared_options_data);
-    urls[2] = compose_effect_ws_request("genomic/variant", "mutation_phenotype", shared_options_data);
+    urls[0] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "consequence_type");
+    urls[1] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "feature/snp", "phenotype");
+    urls[2] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "mutation_phenotype");
 
     LOG_DEBUG_F("URL #1 = '%s'\nURL #2 = '%s'\nURL #3 = '%s'\n", urls[0], urls[1], urls[2]);
     
@@ -80,8 +100,12 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
+    arg_freetable(argtable, 30);
+    array_list_free(config_search_paths, free);
+    free(configuration_file);
 
+    stop_log();
+    
     return 0;
 }
 
@@ -89,7 +113,7 @@ effect_options_t *new_effect_cli_options(void) {
     effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
     options->num_options = NUM_EFFECT_OPTIONS;
     options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
-    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
+    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query (comma-separated)");
     return options;
 }
 

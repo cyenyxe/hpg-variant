@@ -57,7 +57,6 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
      list_decr_writers(read_list);
 */
     
-    printf("markers 3\n");
     //STEP 2 - Resolve families and approve the list of individuals to be used 
     //         in computation, the rest of them being discarded
     
@@ -89,7 +88,6 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
         //LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 //    }
 
-    printf("markers 4\n");
 //    #pragma omp section
 //    {
 
@@ -121,12 +119,9 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
         notify_end_parsing(vcf_file_p);
 //    }
 //}
-    printf("markers 5\n");
     *num_samples = samples_names->size;
 
     vcf_close(vcf_file_p);
-    
-    printf("markers 6\n");
     
     return true;
 }

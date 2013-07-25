@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
  * hpg-variant is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * hpg-variant is distributed in the hope that it will be useful,
@@ -33,12 +33,10 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
         return CANT_READ_CONFIG_FILE;
     }
 
-    const char *tmp_string;
-    
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "effect.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +44,7 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "effect.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -55,50 +53,12 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
     ret_code = config_lookup_int(config, "effect.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "effect.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     } 
     /*else {
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
     }*/
     
-    // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "effect.entries-per-thread", shared_options->entries_per_thread->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
-    }
-
-    // Read host URL
-    ret_code = config_lookup_string(config, "effect.url", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->host_url->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
-                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
-    }
-    
-    // Read species
-    ret_code = config_lookup_string(config, "effect.species", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Species not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->species->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("species = %s (%zu chars)\n",
-                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
-    }
-    
-    // Read version
-    ret_code = config_lookup_string(config, "effect.version", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->version->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("version = %s (%zu chars)\n",
-                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
-    }
-
     config_destroy(config);
     free(config);
 
@@ -111,44 +71,57 @@ void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_opt
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-variant");
+        arg_print_errors(stdout, end, "hpg-var-effect");
     }
     
     return argtable;
 }
 
 void **merge_effect_options(effect_options_t *effect_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = effect_options->num_options + shared_options->num_options + 1;
-    void **tool_options = malloc (opts_size * sizeof(void*));
+    void **tool_options = malloc (30 * sizeof(void*));
+    
+    // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
     tool_options[2] = shared_options->output_filename;
     tool_options[3] = shared_options->output_directory;
     
-    tool_options[4] = shared_options->host_url;
-    tool_options[5] = shared_options->version;
-    tool_options[6] = shared_options->species;
+    // Species
+    tool_options[4] = shared_options->species;
     
-    tool_options[7] = shared_options->max_batches;
-    tool_options[8] = shared_options->batch_lines;
-    tool_options[9] = shared_options->batch_bytes;
-    tool_options[10] = shared_options->num_threads;
-    tool_options[11] = shared_options->entries_per_thread;
+    // Effect arguments
+    tool_options[5] = effect_options->no_phenotypes;
+    tool_options[6] = effect_options->excludes;
     
-    tool_options[12] = shared_options->num_alleles;
-    tool_options[13] = shared_options->coverage;
-    tool_options[14] = shared_options->quality;
-    tool_options[15] = shared_options->region;
-    tool_options[16] = shared_options->region_file;
-    tool_options[17] = shared_options->snp;
+    // Filter arguments
+    tool_options[7] = shared_options->num_alleles;
+    tool_options[8] = shared_options->coverage;
+    tool_options[9] = shared_options->quality;
+    tool_options[10] = shared_options->maf;
+    tool_options[11] = shared_options->missing;
+    tool_options[12] = shared_options->gene;
+    tool_options[13] = shared_options->region;
+    tool_options[14] = shared_options->region_file;
+    tool_options[15] = shared_options->region_type;
+    tool_options[16] = shared_options->snp;
+    tool_options[17] = shared_options->indel;
+    tool_options[18] = shared_options->dominant;
+    tool_options[19] = shared_options->recessive;
     
-    tool_options[18] = shared_options->config_file;
-    tool_options[19] = shared_options->mmap_vcf_files;
+    // Configuration file
+    tool_options[20] = shared_options->log_level;
+    tool_options[21] = shared_options->config_file;
     
-    tool_options[20] = effect_options->no_phenotypes;
-    tool_options[21] = effect_options->excludes;
-               
-    tool_options[22] = arg_end;
+    // Advanced configuration
+    tool_options[22] = shared_options->host_url;
+    tool_options[23] = shared_options->version;
+    tool_options[24] = shared_options->max_batches;
+    tool_options[25] = shared_options->batch_lines;
+    tool_options[26] = shared_options->batch_bytes;
+    tool_options[27] = shared_options->num_threads;
+    tool_options[28] = shared_options->mmap_vcf_files;
+    
+    tool_options[29] = arg_end;
     
     return tool_options;
 }
@@ -161,22 +134,29 @@ int verify_effect_options(effect_options_t *effect_options, shared_options_t *sh
         return VCF_FILE_NOT_SPECIFIED;
     }
     
+    // Check whether the input PED file is defined when needed (for certain filters)
+    if ((shared_options->dominant->count || shared_options->recessive->count) &&
+        shared_options->ped_filename->count == 0) {
+        LOG_ERROR("Please specify the input PED file.\n");
+        return PED_FILE_NOT_SPECIFIED;
+    }
+    
     // Check whether the host URL is defined
     if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
         LOG_ERROR("Please specify the host URL to the web service.\n");
-        return EFFECT_HOST_URL_NOT_SPECIFIED;
+        return HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
     if (shared_options->version->sval == NULL || strlen(*(shared_options->version->sval)) == 0) {
         LOG_ERROR("Please specify the version.\n");
-        return EFFECT_VERSION_NOT_SPECIFIED;
+        return VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
     if (shared_options->species->sval == NULL || strlen(*(shared_options->species->sval)) == 0) {
         LOG_ERROR("Please specify the species to take as reference.\n");
-        return EFFECT_SPECIES_NOT_SPECIFIED;
+        return SPECIES_NOT_SPECIFIED;
     }
 
     // Checker whether batch lines or bytes are defined

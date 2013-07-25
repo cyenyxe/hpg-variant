@@ -6,8 +6,8 @@
 
 #include <containers/array_list.h>
 
-#include "../effect/effect.h"
-#include "../effect/effect_runner.h"
+#include "effect/effect.h"
+#include "effect/effect_runner.h"
 
 
 Suite *create_test_suite(void);
@@ -23,11 +23,11 @@ effect_options_data_t *opts_data;
 
 void setup_effect_ws(void) {
     global_data = (shared_options_data_t*) calloc (1, sizeof(shared_options_data_t));
-    global_data->vcf_filename = strdup("effect_files/variants_marta_head_3K.vcf");
-    global_data->output_directory = strdup("/tmp/variant-test/");
+    global_data->vcf_filename = "effect_files/variants_marta_head_500.vcf";
+    global_data->output_directory = "/tmp/variant-test/";
     global_data->num_threads = 4;
     global_data->max_batches = 10;
-    global_data->batch_size = 4000;
+    global_data->batch_lines = 4000;
     global_data->entries_per_thread = 1000;
     
     opts_data = (effect_options_data_t*) calloc (1, sizeof(effect_options_data_t));
@@ -46,28 +46,29 @@ void teardown_effect_ws(void) {
 
 START_TEST (url_composition) {
     // All null arguments
-    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (all args are null)");
+    fail_if(compose_effect_ws_request("genomic/variant", "consequence_type", global_data), 
+            "The resulting URL must be null (all args are null)");
     
     // Some not-null arguments
     global_data->species = "hsa";
-    global_data->version = "v1";
-    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (some args are null)");
+    global_data->version = "latest";
+    fail_if(compose_effect_ws_request("genomic/variant", "consequence_type", global_data), 
+            "The resulting URL must be null (some args are null)");
     
     // None null argument
     global_data->host_url = "http://localhost:8080";
     global_data->species = "hsa";
-    global_data->version = "v1";
+    global_data->version = "latest";
     
-    char *url = compose_effect_ws_request(global_data);
-    fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type?header=false"),
-            "The resulting URL must be 'http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type'"); 
+    char *url = compose_effect_ws_request("genomic/variant", "consequence_type", global_data);
+    fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/latest/hsa/genomic/variant/consequence_type?header=false"),
+            "The resulting URL must be 'http://localhost:8080/cellbase/rest/latest/hsa/genomic/variant/consequence_type'"); 
 }
 END_TEST
 
 
 START_TEST (effect_ws_request) {
-    char *url = "http://mem16:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type?header=false";
-    vcf_batch_t *batch = vcf_batch_new(4);
+    char *url = "http://mem16:8080/cellbase/rest/latest/hsa/genomic/variant/consequence_type?header=false";
     
     vcf_record_t *record_1 = (vcf_record_t*) malloc (sizeof(vcf_record_t));
     record_1->chromosome = "11";
@@ -87,32 +88,12 @@ START_TEST (effect_ws_request) {
     record_3->reference = "A";
     record_3->alternate = "TC";
     
-    array_list_insert(record_1, batch);
-    array_list_insert(record_2, batch);
-    array_list_insert(record_3, batch);
+    vcf_record_t *records[3];
+    records[0] = record_1;
+    records[1] = record_2;
+    records[2] = record_3;
     
-    fail_unless(run_effect(url, global_data, opts_data) == 0, "The web service request was not successfully performed");
-}
-END_TEST
-
-
-START_TEST (effect_ws_response) {
-    char buf[100];
-    int i = 0;
-    FILE *p;
-    
-    // Check summary
-    p = popen("/usr/bin/wc -l /tmp/variant-test/summary.txt","r");
-    if (p) {
-        i = 0;
-        while (!feof(p) && (i < 99) ) {
-            fread(&buf[i],1,1,p);
-            i++;
-        }
-        buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 3, "There must be 3 entries in summary.txt");
-        pclose(p);
-    }
+    fail_if(invoke_effect_ws(url, records, 3, ""), "The web service request was not successfully performed");
 }
 END_TEST
 
@@ -123,9 +104,8 @@ START_TEST (whole_test) {
     FILE *p;
     
     // Invoke hpg-variant/effect
-    int tdt_ret = system("../bin/hpg-variant effect --vcf-file effect_files/variants_marta_head_3K.vcf \
-                                                    --config ../bin/hpg-variant.cfg \
-                                                    --outdir ./ --region 1:10000-400000");
+    int tdt_ret = system("../bin/hpg-var-effect --vcf-file effect_files/variants_marta_head_500.vcf \
+                                                --outdir ./ --region 1:13000-13500");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check all variants
@@ -136,7 +116,7 @@ START_TEST (whole_test) {
             i++;
         }
         buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 499, "There must be 499 entries in all_variants.txt");
+        fail_unless(atoi(strtok(buf, "\t")) == 100, "There must be 100 entries in all_variants.txt");
         pclose(p);
     }
     
@@ -149,7 +129,7 @@ START_TEST (whole_test) {
             i++;
         }
         buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 34, "There must be 34 entries in 5KB_downstream_variant.txt");
+        fail_unless(atoi(strtok(buf, "\t")) == 21, "There must be 34 entries in 5KB_downstream_variant.txt");
         pclose(p);
     }
     
@@ -162,7 +142,7 @@ START_TEST (whole_test) {
             i++;
         }
         buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 47, "There must be 47 entries in intron_variant.txt");
+        fail_unless(atoi(strtok(buf, "\t")) == 3, "There must be 3 entries in intron_variant.txt");
         pclose(p);
     }
     
@@ -175,7 +155,7 @@ START_TEST (whole_test) {
             i++;
         }
         buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 256, "There must be 256 entries in regulatory_region_variant.txt");
+        fail_unless(atoi(strtok(buf, "\t")) == 45, "There must be 45 entries in regulatory_region_variant.txt");
         pclose(p);
     }
     
@@ -188,7 +168,7 @@ START_TEST (whole_test) {
             i++;
         }
         buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 13, "There must be 13 entries in summary.txt");
+        fail_unless(atoi(strtok(buf, "\t")) == 8, "There must be 8 entries in summary.txt");
         pclose(p);
     }
     
@@ -220,7 +200,6 @@ Suite *create_test_suite(void)
     TCase *tc_web_service = tcase_create("Web service request");
     tcase_add_unchecked_fixture(tc_web_service, setup_effect_ws, teardown_effect_ws);
     tcase_add_test(tc_web_service, effect_ws_request);
-//     tcase_add_test(tc_web_service, effect_ws_response);
     tcase_set_timeout(tc_web_service, 0);
     
     TCase *tc_system = tcase_create("System test");

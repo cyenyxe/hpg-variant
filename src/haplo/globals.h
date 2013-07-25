@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <commons/argtable/argtable2.h>
 
-#include "global_options.h"
+#include "shared_options.h"
 
 #define UNK_BASE (unsigned char)0
 #define A_BASE (unsigned char)1

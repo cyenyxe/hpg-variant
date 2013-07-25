@@ -35,11 +35,11 @@ int haplo_main(int argc, char *argv[], const char *configuration_file)
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_t *shared_opts = new_shared_cli_options();
+    shared_options_t *shared_opts = new_shared_cli_options(0);
     haplo_options_t *haplo_opts = new_haplo_cli_options();
     
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration(configuration_file, shared_opts);
+    int config_errors = read_shared_configuration(configuration_file, shared_opts);
     config_errors &= read_haplo_configuration(configuration_file, haplo_opts, shared_opts);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
@@ -91,7 +91,7 @@ int haplo_main(int argc, char *argv[], const char *configuration_file)
     //free_marker_array(all_markers, samples_names->size);
     free(haplo_opts);
     //free_shared_options_data(shared_opts);
-    arg_freetable(argtable, haplo_opts->num_opts + shared_opts->num_options);
+    arg_freetable(argtable, 25);
     return EXIT_SUCCESS;
 }
 
@@ -214,8 +214,7 @@ void **parse_haplo_options(int argc, char *argv[], haplo_options_t *haplo_option
 }
 
 void **merge_haplo_options(haplo_options_t *haplo_opts, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = haplo_opts->num_opts + shared_options->num_options + 1;
-    void **tool_options = malloc (opts_size * sizeof(void*));
+    void **tool_options = malloc (25 * sizeof(void*));
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
     tool_options[2] = shared_options->output_filename;
@@ -229,25 +228,24 @@ void **merge_haplo_options(haplo_options_t *haplo_opts, shared_options_t *shared
     tool_options[8] = shared_options->batch_lines;
     tool_options[9] = shared_options->batch_bytes;
     tool_options[10] = shared_options->num_threads;
-    tool_options[11] = shared_options->entries_per_thread;
     
-    tool_options[12] = shared_options->num_alleles;
-    tool_options[13] = shared_options->coverage;
-    tool_options[14] = shared_options->quality;
-    tool_options[15] = shared_options->region;
-    tool_options[16] = shared_options->region_file;
-    tool_options[17] = shared_options->snp;
+    tool_options[11] = shared_options->num_alleles;
+    tool_options[12] = shared_options->coverage;
+    tool_options[13] = shared_options->quality;
+    tool_options[14] = shared_options->region;
+    tool_options[15] = shared_options->region_file;
+    tool_options[16] = shared_options->snp;
     
-    tool_options[18] = shared_options->config_file;
-    tool_options[19] = shared_options->mmap_vcf_files;
+    tool_options[17] = shared_options->config_file;
+    tool_options[18] = shared_options->mmap_vcf_files;
     
-    tool_options[20] = haplo_opts->alleleref;
-    tool_options[21] = haplo_opts->hwcut;
-    tool_options[22] = haplo_opts->fgcut;
-    tool_options[23] = haplo_opts->mendcut;
-    tool_options[24] = haplo_opts->mafcut;
+    tool_options[19] = haplo_opts->alleleref;
+    tool_options[20] = haplo_opts->hwcut;
+    tool_options[21] = haplo_opts->fgcut;
+    tool_options[22] = haplo_opts->mendcut;
+    tool_options[23] = haplo_opts->mafcut;
                
-    tool_options[25] = arg_end;
+    tool_options[24] = arg_end;
     
     return tool_options;
 }
