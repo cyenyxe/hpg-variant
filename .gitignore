@@ -25,9 +25,11 @@ hpg-variant-0.*
 src/effect/hpg-var-effect
 src/epistasis/hpg-var-epistasis
 src/gwas/hpg-var-gwas
+src/haplo/hpg-var-haplo
 src/vcf-tools/hpg-var-vcf
 
-/nbproject/private/
+datasets/
+nbproject/
 
 test/*.txt
 test/*.bin
