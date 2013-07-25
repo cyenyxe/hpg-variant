@@ -10,15 +10,15 @@
 
 #include <string.h>
 #include <stdbool.h>
-#include <argtable2.h>
+#include <commons/argtable/argtable2.h>
 
 #include "global_options.h"
 
-#define A_BASE (unsigned char)1
-#define T_BASE (unsigned char)4
-#define G_BASE (unsigned char)3
-#define C_BASE (unsigned char)2
 #define UNK_BASE (unsigned char)0
+#define A_BASE (unsigned char)1
+#define C_BASE (unsigned char)2
+#define G_BASE (unsigned char)3
+#define T_BASE (unsigned char)4
 /** use this when you need to distinguish between a real base and a special case which needs another starting code*/
 #define NOT_A_BASE (unsigned char)0x5
 /** Total number of representations available for the bases (known/unk/not_a_base)

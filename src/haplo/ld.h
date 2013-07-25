@@ -86,9 +86,9 @@ pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int 
  * Provides a method to compare 2 elements used in quicksort; It is using the sep field
  * of the marker_info struct; The order is descending
  */
-inline static int compare(const void *markeri1, const void *markeri2);
+inline static int compare_markers(const void *markeri1, const void *markeri2);
 
-inline static int compare_asc(const void *markeri1, const void *markeri2) ;
+inline static int compare_markers_asc(const void *markeri1, const void *markeri2) ;
 
 /**
  * Check if a marker's rating is above 0, meaning it is valid and it can be used in the processing;

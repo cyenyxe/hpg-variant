@@ -32,8 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
-#include <libconfig.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_util.h>

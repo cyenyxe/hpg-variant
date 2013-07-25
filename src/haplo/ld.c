@@ -37,7 +37,7 @@ variant_stats_t **output_arr;
 
 // Settings for the block finding algorithm
 double cutHighCI = 0.98;
-double cutLowCI = 0.10; //originally 0.7, but for testing purposes it has been lowered
+double cutLowCI = 0.70; //originally 0.7, but for testing purposes it has been lowered
 double mafThresh = 0.05;
 double cutLowCIVar[] = {0,0,0.80,0.50,0.50};
 double maxDist[] = {0,0,20000,30000,1000000};
@@ -66,7 +66,7 @@ array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwis
 	size_t markers_num, *cpyP, numStrong = 0, count = 0, blocks_num = 0, block_idx = 0, numRec = 0, numInGroup = 0, strong_pairs_num = 0;
 
 	//Vector blocks = new Vector();
-	//first set up a filter of markers which fail the MAF threshhold
+	//first set up a filter of markers which fail the MAF threshold
 	bool *skip_marker, *used_in_block;
 	// a block array comprising all the elements between 2 positions from strong_pairs
 	//int *this_block;
@@ -80,7 +80,7 @@ array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwis
 	// TODO MAJOR - set rating for each marker (which seems to be negative for false) and that's why 2 markers are filtered out by the program
 	// TODO MAJOR - create an array for filtered markers and another one with the wants that were filtered out
 
-	markers_num = /*Here is not marker_num - is the filtered markers num with objects having a positive rating */markers_arr->size;
+	markers_num = markers_arr->size; /*Here is not marker_num - is the filtered markers num with objects having a positive rating */
 
 	strong_pairs = (marker_info *) malloc(sizeof(*strong_pairs) * ((markers_num-1)*markers_num/2));
 	skip_marker = (bool *) malloc(sizeof(*skip_marker) * markers_num);
@@ -89,25 +89,28 @@ array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwis
 //#pragma omp for
 	size_t x = 0;
 	while (x < markers_arr->size){
-		marker *temp = (marker *)array_list_get(x, markers_arr);
-		if (filter_rating(temp))
-		{
-			//checks minor allele frequency
-			if (temp->maf < mafThresh){
-				skip_marker[x] = true;
-			}else{
-				skip_marker[x] = false;
-			}
+            marker *temp = (marker *)array_list_get(x, markers_arr);
+            if (filter_rating(temp))
+            {
+                    //checks minor allele frequency
+                    if (temp->maf < mafThresh){
+                            skip_marker[x] = true;
+                    }else{
+                            skip_marker[x] = false;
+                    }
 
-		}
+            }
+            printf("%d = %.3f -> ", temp->position, temp->maf);
+            printf("%d\n", skip_marker[x]);
 //		else
 //			skip_marker[x] = true;
-		x++;
+            x++;
 //		else
 //			array_list_remove_at(x, markers_arr);
 	}
+        printf("\n");
 //}// End #pragma omp parallel
-	markers_num = /*Here is not marker_num - is the filtered markers num with objects having a positive rating */markers_arr->size;
+	markers_num = markers_arr->size;/*Here is not marker_num - is the filtered markers num with objects having a positive rating */
 uint32_t countn = 0;
         //#pragma omp parallel shared(markers_num, markers_arr, skip_marker)
 //{
@@ -118,30 +121,35 @@ uint32_t countn = 0;
         
 	for (int64_t x = markers_num-2; x >=0; x--){
 		for (int64_t y =markers_num-1 ; y > x; y--){
-			apair = pairs_table[x*markers_num + y];
-			marker *temp1 = (marker *)array_list_get(x, markers_arr);
-			marker *temp2 = (marker *)array_list_get(y, markers_arr);
-//			if (!filter_rating(temp1) || !filter_rating(temp2))
-//				printf("here is not filter\n");
-//                        if (apair == NULL)
-//                            countn++;
-			if (apair != NULL &&
-					(!skip_marker[x] && !skip_marker[y]) &&
-					apair->lod >= -90 &&
-					(apair->ci_high >= cutHighCI && apair->ci_low >= cutLowCI) //&&//must pass "strong LD" test
+
+/*
+        for (int x = 0; x < markers_num-1; x++){
+            for (int y = x+1; y < markers_num; y++){
+*/
+                apair = pairs_table[x*markers_num + y];
+                
+/*
+                printf("- (%d, %d)\n", x, y);
+*/
+                
+                if (apair != NULL &&
+                    (!skip_marker[x] && !skip_marker[y]) &&
+                    apair->lod >= -90 &&
+                    (apair->ci_high >= cutHighCI && apair->ci_low >= cutLowCI) //&&//must pass "strong LD" test
 //					filter_rating(temp1) &&
 //					filter_rating(temp2)
-					)
-			{
-                            long sep;
-                            //compute actual separation
-                            sep = labs(((marker *)array_list_get(y, markers_arr))->position -
-                                            ((marker *)array_list_get(x, markers_arr))->position);
-                            strong_pairs[strong_pairs_num].marker_p1 = x;
-                            strong_pairs[strong_pairs_num].marker_p2 = y;
-                            strong_pairs[strong_pairs_num++].sep = sep;
-			}
-		}
+                    )
+                {
+                    long sep;
+                    //compute actual separation
+                    sep = labs(((marker *)array_list_get(y, markers_arr))->position -
+                                    ((marker *)array_list_get(x, markers_arr))->position);
+                    strong_pairs[strong_pairs_num].marker_p1 = x;
+                    strong_pairs[strong_pairs_num].marker_p2 = y;
+                    strong_pairs[strong_pairs_num++].sep = sep;
+                    printf("+ (%d, %d, %ld)\n", x, y, sep);
+                }
+            }
 	}
 //}// End #pragma omp parallel
         //printf("\nNUm nulls:%u\n", countn);
@@ -152,11 +160,11 @@ uint32_t countn = 0;
 		printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1,
 				strong_pairs[i].marker_p2, strong_pairs[i].sep);*/
 	// Sort descending the strong pairs
-	qsort(strong_pairs, strong_pairs_num, sizeof(*strong_pairs), compare);
+	qsort(strong_pairs, strong_pairs_num, sizeof(*strong_pairs), compare_markers);
 
-	/*for (int i=0;i<strong_pairs_num;i++)
-			printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1,
-					strong_pairs[i].marker_p2, strong_pairs[i].sep);*/
+	for (int i=0;i<strong_pairs_num;i++)
+            printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1,
+                                            strong_pairs[i].marker_p2, strong_pairs[i].sep);
 
 	//@ Now take this list of pairs with "strong LD" and construct blocks
 	used_in_block = (bool *) calloc(markers_num + 1, sizeof(*used_in_block));
@@ -293,50 +301,40 @@ pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int 
 	int idxl_real = 0;
 	int idxc_real = 0;
 	// Alloc the necessary memo for all linkages
-	stats_mat_result = (pairwise_linkage **) malloc(sizeof(**stats_mat_result) *
-			square(markers_num));
+	stats_mat_result = (pairwise_linkage **) malloc(sizeof(pairwise_linkage*) * square(markers_num));
 	printf("pairwise linkage table: \n");
-//#pragma omp parallel shared(markers_arr)
-//	{
-//#pragma omp parallel for collapse(2)
-	for (size_t idxL=0;idxL<markers_num-1;idxL++) {
-		for (size_t idxC=idxL+1;idxC<markers_num;idxC++) {
-//        for (size_t idxL=markers_num-1;idxL>0;idxL--) {
-//		for (int64_t idxC=idxL-1;idxC>=0;idxC--) {
-			/*printf(" %ld-%ld ",
-										((marker *)array_list_get(idxL, markers_arr))->position,
-										((marker *)array_list_get(idxC, markers_arr))->position);*/
+        
+	for (size_t idxL = 0; idxL < markers_num-1; idxL++) {
+		for (size_t idxC = idxL+1; idxC < markers_num; idxC++) {
+			printf("[%d,%d] %ld - %ld = %d (<= %d?)\n", idxC, idxL, 
+                                ((marker *)array_list_get(idxC, markers_arr))->position,
+                                ((marker *)array_list_get(idxL, markers_arr))->position,
+                                ((marker *)array_list_get(idxC, markers_arr))->position - 
+                                ((marker *)array_list_get(idxL, markers_arr))->position,
+                                max_distance);
 			if (max_distance > 0) {
 				if (((marker *)array_list_get(idxC, markers_arr))->position -
 						((marker *)array_list_get(idxL, markers_arr))->position <= max_distance) {
-					//printf("-A-");
 					aux = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
 					stats_mat_result[idxL*markers_num + idxC] = aux;
-#ifdef DEBUG
-					if (aux != NULL// && idxC == 18 && idxL == 17
+					if (aux != NULL 
+                                            // && idxC == 18 && idxL == 17
 							) {
-						char dprint[30];char clprint[30];char chprint[30];char lodprint[30];
-						sprintf(dprint, "%04.2f", aux->dprime );
+						char dprint[30];char lodprint[30];char clprint[30];char chprint[30];
+						sprintf(dprint, "%04.3f", aux->dprime );
+						sprintf(lodprint, "%04.2f", aux->lod );
 						sprintf(clprint, "%04.2f", aux->ci_low );
 						sprintf(chprint, "%04.2f", aux->ci_high );
-						sprintf(lodprint, "%04.2f", aux->lod );
-						printf("%d-%d-%6s/%6s/%6s/%6s ", idxL, idxC,
-								dprint, clprint, chprint, lodprint);
+						printf("%7s/%6s/%6s/%6s\n", dprint, lodprint, clprint, chprint);
 					}
-#endif
 				} else {
-					//printf("-N-");
 					stats_mat_result[idxL*markers_num + idxC] = NULL;
 				}
 			} else {//we need all the possible combinations when the distance between SNPs is not specified
 				stats_mat_result[idxL*markers_num + idxC] = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);;
 			}
 		}
-#ifdef DEBUG
-		printf("\n");
-#endif
 	}
-//	}// End of omp parallel
 
 	// We return the matrix with the linkage between each 2 elements from the stats array
 	// It is up to the main mechanism to free the space alloc'ed by this function
@@ -647,13 +645,13 @@ void free_marker_array(marker *array, int len) {
 	free(array);
 }/*free_marker_array*/
 
-inline static int compare(const void *markeri1, const void *markeri2) {
+inline static int compare_markers(const void *markeri1, const void *markeri2) {
  if(((marker_info *)markeri1)->sep > ((marker_info *)markeri2)->sep) return -1;
    else if(((marker_info *)markeri1)->sep < ((marker_info *)markeri2)->sep) return 1;
    else return 0;
 }
 
-inline static int compare_asc(const void *markeri1, const void *markeri2) {
+inline static int compare_markers_asc(const void *markeri1, const void *markeri2) {
  if(((marker_info *)markeri1)->sep < ((marker_info *)markeri2)->sep) return -1;
    else if(((marker_info *)markeri1)->sep > ((marker_info *)markeri2)->sep) return 1;
    else return 0;

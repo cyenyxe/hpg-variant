@@ -10,46 +10,54 @@
 bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *share_data,
 		const haplo_options_data_t *haplo_data, unsigned int  *num_samples)
 {
-	int ret_code;
-        list_t *read_list = (list_t*) malloc (sizeof(*read_list));
-        int header_written = 0;
+    int ret_code;
+    list_t *read_list = (list_t*) malloc (sizeof(*read_list));
+    int header_written = 0;
 
-        int i = 0;
-        int add_ret_code = 0;
-        vcf_batch_t *batch;
-        list_item_t* item = NULL;
-        ped_batch_t *batch = NULL;
-        list_item_t *batch_item = NULL;
+    printf("markers 1\n");
+    int i = 0;
+/*
+    int add_ret_code = 0;
+    list_item_t* item = NULL;
+    ped_batch_t *batch = NULL;
+    list_item_t *batch_item = NULL;
     
     // STEP 1 - parse PED file and get the individuals with their sex and parents
     ped_file_t* file = ped_open(share_data->ped_filename);
     
+    printf("markers 1.1\n");
+    
+    // ret_code = ped_read(file);
     ret_code = ped_read_batches(read_list, share_data->batch_lines, file);
     
+    printf("markers 1.2\n");
     while ( (item = list_remove_item(read_list)) != NULL ) {
-            batch = (ped_batch_t*) item->data_p;
-            if (i % 200 == 0) 
-            {
-                int debug = 1;
-                LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", i, omp_get_thread_num(), 
-                    ((ped_batch_t*) item->data_p)->length, ((ped_batch_t*) item->data_p)->max_length);
-            }
-            
-            while ( (batch_item = list_remove_item_async(batch)) != NULL) {
-                add_ret_code = add_ped_record(batch_item->data_p, file);
-                if (add_ret_code > 0) {
-                    LOG_ERROR_F("%s - %s\n", ((ped_record_t*) batch_item->data_p)->family_id, get_ped_semantic_error_msg(add_ret_code));
-                }
-            }
-            
-            ped_batch_free(item->data_p);
-            list_item_free(item);
-            i++;
+        batch = (ped_batch_t*) item->data_p;
+        if (i % 200 == 0) 
+        {
+            int debug = 1;
+            LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", i, omp_get_thread_num(), 
+                ((ped_batch_t*) item->data_p)->length, ((ped_batch_t*) item->data_p)->max_length);
         }
+
+        while ( (batch_item = list_remove_item_async(batch)) != NULL) {
+            add_ret_code = add_ped_record(batch_item->data_p, file);
+            if (add_ret_code > 0) {
+                LOG_ERROR_F("%s - %s\n", ((ped_record_t*) batch_item->data_p)->family_id, get_ped_semantic_error_msg(add_ret_code));
+            }
+        }
+
+        ped_batch_free(item->data_p);
+        list_item_free(item);
+        i++;
+    }
         
+    printf("markers 2\n");
        
      list_decr_writers(read_list);
+*/
     
+    printf("markers 3\n");
     //STEP 2 - Resolve families and approve the list of individuals to be used 
     //         in computation, the rest of them being discarded
     
@@ -67,7 +75,10 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
         // Reading
         //start = omp_get_wtime();
 
+/*
         ret_code = vcf_parse_batches(share_data->batch_lines, vcf_file_p, 1);
+*/
+        ret_code = vcf_read(vcf_file_p, 1, 1000, 1);
         notify_end_reading(vcf_file_p);
 
        // stop = omp_get_wtime();
@@ -78,40 +89,54 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
         //LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 //    }
 
+    printf("markers 4\n");
 //    #pragma omp section
 //    {
 
         //start = omp_get_wtime();
 
-        
-        while ( (batch = fetch_vcf_batch(vcf_file_p)) != NULL ) {
-        	marker **segment_markers = get_markers(batch->records, samples_names->size, haplo_data);
-        	// Heck knows why it's impossible to get array's size directly with the indirection operator. level 2
-        	array_list_t *temp = batch->records;
-        	size_t num_rec = temp->size;
+        vcf_batch_t *vcf_batch = NULL;
+/*
+        while (vcf_batch = fetch_vcf_batch(vcf_file_p)) {
+*/
+        vcf_batch = fetch_vcf_batch(vcf_file_p);
+            printf("markers 4.1\n");
+            marker **segment_markers = get_markers(vcf_batch->records, samples_names->size, haplo_data);
+            printf("markers 4.2\n");
+            // Heck knows why it's impossible to get array's size directly with the indirection operator. level 2
+            array_list_t *temp = vcf_batch->records;
+            size_t num_rec = temp->size;
 
-        	array_list_insert_all((void **) segment_markers, num_rec, all_markers);
+            array_list_insert_all((void **) segment_markers, num_rec, all_markers);
+            printf("markers 4.3\n");
 
-            vcf_batch_free(batch);
+            vcf_batch_free(vcf_batch);
+            printf("markers 4.4\n");
 
             i++;
+/*
         }
+*/
 
+        notify_end_parsing(vcf_file_p);
 //    }
 //}
+    printf("markers 5\n");
     *num_samples = samples_names->size;
 
     vcf_close(vcf_file_p);
+    
+    printf("markers 6\n");
+    
     return true;
 }
 
 static marker **get_markers(array_list_t *variants, const unsigned int num_samples,
 		const haplo_options_data_t *params) {
-	//int num_samples;
     char *copy_buf, *copy_buf2, *token, *sample;
     char *save_strtok, *str_dup_buf;
     // allele 1 & 2 definition to be packed further in a unsigned char
-    unsigned char a1, a2, auxuc;
+    unsigned char a1 = 0, a2 = 0, auxuc;
 
     int num_alternates, gt_pos, cur_pos, numa1, numa2;
     int allele1, allele2, alleles_code;
@@ -131,11 +156,14 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
     size_t num_variants = variants->size;
     //num_samples = variants[0]->samples->size;
     marker **result = malloc(num_variants * sizeof(marker*));
+    list_t *output_list = malloc (sizeof(list_t));
+    list_init("stats", 1, 10, output_list);
+    
     bool is_chr_x;
     founderHomCount = malloc(sizeof(*founderHomCount) * NUM_KINDS_BASES_F);
     for (size_t i = 0; i < num_variants; i++) {
     	//init the alleles' counter, better than a for because the compiler can decide how to expand it
-    	memset(alleles_count, 0, sizeof(*alleles_count)*NUM_KINDS_BASES_F);
+    	memset(alleles_count, 0, sizeof(int64_t)*NUM_KINDS_BASES_F);
 
         record = (vcf_record_t *) array_list_get(i, variants);
         result[i] = malloc(sizeof(**result));
@@ -183,11 +211,10 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
         female_count = 0;
         // check if the current chromosome record is the X one ( we have some special treatment for it)
         is_chr_x = is_x(record->chromosome);
-        char id[70];
-         strncpy(id, record->id, 70);
-        printf("%s\n", id);
-        if (strncmp(id, "rs142725888", 11) == 0)
-        	printf("stop");
+/*
+        printf("%.*s\n", record->id_len, record->id);
+        if (strncmp(record->id, "rs142725888", 11) == 0) printf("stop");
+*/
         (result[i])->is_x = is_chr_x;
         founderHetCount = 0;
         memset(founderHomCount, 0, sizeof(*founderHomCount) * NUM_KINDS_BASES_F);
@@ -217,139 +244,161 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
             if (a1 >= 6 || a2 >= 6)
             	printf("cute");
             //CODE FROM HAPLOVIEW
-                    	if(a1 > 0 && a2 >0){
+                if(a1 > 0 && a2 >0){
 
-            					//if (a1 != 9){  //value of 9 means an 'h' allele for haps files...
-            						alleles_count[a1]++;
-            //					}else{
-            //						alleles_count[5]++;
-            //					}
-            					// TODO NORMAL - There is no gender column in the VCF format; please advise
-            					if (!is_chr_x) {// || currentInd.getGender() != 1) {
-            						if(a1 != a2) {// || a1 == 9 || a2 == 9) {
-            							founderHetCount++;
-            						}else{
-            							founderHomCount[a1]++;
-            						}
-            						//if(a2 != 9){
-            							alleles_count[a2]++;
+                    //if (a1 != 9){  //value of 9 means an 'h' allele for haps files...
+                            alleles_count[a1]++;
+//					}else{
+//						alleles_count[5]++;
+//					}
+                    // TODO NORMAL - There is no gender column in the VCF format; please advise
+                    if (!is_chr_x) {// || currentInd.getGender() != 1) {
+                            if(a1 != a2) {// || a1 == 9 || a2 == 9) {
+                                    founderHetCount++;
+                            }else{
+                                    founderHomCount[a1]++;
+                            }
+                            //if(a2 != 9){
+                                    alleles_count[a2]++;
 //            						}else{
 //            							alleles_count[5]++;
 //            						}
-            						// TODO  There is no sex in the VCF
-            						female_count++;
-            					}
+                            // TODO  There is no sex in the VCF
+                            female_count++;
+                    }
 
 
-            				called++;
-            			}
-            			//missing data
-            			else missing_data++;
+                    called++;
+                }
+                //missing data
+                else missing_data++;
 
-            if (a1 == a2 || a1 == 0 || a2 == 0) {
-            				/*a1 = NOT_A_BASE + a1;
-            				a2 = NOT_A_BASE + a2;*/
-            			} else {
-			//if (a1 != a2 && a1 >= 0 && a2 >= 0) {
-				/*a1 = NOT_A_BASE + a1;
-				a2 = NOT_A_BASE + a2;*/
-				a1 = 4 + a1;
-				a2 = 4 + a2;
-			}
+                if (a1 == a2 || a1 == 0 || a2 == 0) {
+                    /*a1 = NOT_A_BASE + a1;
+                    a2 = NOT_A_BASE + a2;*/
+                } else {
+            //if (a1 != a2 && a1 >= 0 && a2 >= 0) {
+                    /*a1 = NOT_A_BASE + a1;
+                    a2 = NOT_A_BASE + a2;*/
+                    a1 = 4 + a1;
+                    a2 = 4 + a2;
+                }
 
             // create the magic variable with the 2 alleles (first one on the first 4 bits, second one
             // on the next 4 bits)
-        	(result[i])->samples[j] = (a1 << NUM_BITS_SHIFT) + a2 ;
+            (result[i])->samples[j] = (a1 << NUM_BITS_SHIFT) + a2 ;
         }
         
-        // Check the type of ref allele determination required and switch if necessary
-		if (params->alleleref == ALLELE_REF_HAPLOVIEW
-				&& alleles_count[1] >= alleles_count[0]) {//numa2 >= numa1) {//we just exchange the first position
-			auxuc = (result[i])->reference;
-			(result[i])->reference = (result[i])->alternates[0];
-			(result[i])->alternates[0] = auxuc;
-		}// Else don't change anything
+        // Check the type of ref allele determination required and switch if necessary (HaploView mode)
+        if (alleles_count[1] >= alleles_count[0]) {
+                auxuc = (result[i])->reference;
+                (result[i])->reference = (result[i])->alternates[0];
+                (result[i])->alternates[0] = auxuc;
+        }// Else don't change anything
 
+        file_stats_t *file_stats = file_stats_new();
+        get_variants_stats(&record, 1, NULL, NULL, output_list, file_stats);
+        list_item_t* item = list_remove_item(output_list);
+        variant_stats_t *variant_stats = item->data_p;
+        
+        float maf = 1.0f;
+        for (int i = 0; i < variant_stats->num_alleles; i++) {
+            if (variant_stats->alleles_freq[i] < maf) {
+                maf = variant_stats->alleles_freq[i];
+            }
+        }
+        result[i]->maf = maf;
+        int mend_error_num = variant_stats->mendelian_errors;
+        
+        list_decr_writers(output_list);
+        list_item_free(item);
+        variant_stats_free(variant_stats);
+        file_stats_free(file_stats);
+/*
         // CODE FROM HAPLOVIEW
         num_hets = alleles_count[5];
         alleles_count[5] = 0;
         if (num_hets > 0){
-			num_alleles = 0;
-			for (int i = 1; i < NUM_KINDS_BASES_F-1; i++){
-				if (alleles_count[i] > 0){
-					num_alleles++;
-				}
-			}
+                num_alleles = 0;
+                for (int i = 1; i < NUM_KINDS_BASES_F-1; i++){
+                        if (alleles_count[i] > 0){
+                                num_alleles++;
+                        }
+                }
 
-			if (num_alleles == 0){
-				alleles_count[1] += num_hets/2;
-				alleles_count[3] += num_hets/2;
-			}else if (num_alleles ==  1){
-				for (int i = 1; i < NUM_KINDS_BASES_F-1; i++){
-					if (alleles_count[i] > 0){
-						alleles_count[i] += num_hets/2;
-						if (i == 4){
-							alleles_count[3] += num_hets/2;
-						}else{
-							alleles_count[i+1] += num_hets/2;
-						}
-						break;
-					}
-				}
-			}else if (num_alleles == 2){
-				for (int i = 1; i < NUM_KINDS_BASES_F -1; i++){
-					if (alleles_count[i] > 0){
-						alleles_count[i] += num_hets/2;
-					}
-				}
-			}
-		}
+                if (num_alleles == 0){
+                        alleles_count[1] += num_hets/2;
+                        alleles_count[3] += num_hets/2;
+                }else if (num_alleles ==  1){
+                        for (int i = 1; i < NUM_KINDS_BASES_F-1; i++){
+                                if (alleles_count[i] > 0){
+                                        alleles_count[i] += num_hets/2;
+                                        if (i == 4){
+                                                alleles_count[3] += num_hets/2;
+                                        }else{
+                                                alleles_count[i+1] += num_hets/2;
+                                        }
+                                        break;
+                                }
+                        }
+                }else if (num_alleles == 2){
+                        for (int i = 1; i < NUM_KINDS_BASES_F -1; i++){
+                                if (alleles_count[i] > 0){
+                                        alleles_count[i] += num_hets/2;
+                                }
+                        }
+                }
+        }
         maf = 0;
         //sumsq=0;
         sum=0; num=0; mincount = -1;
 		//int num_alleles = 0;
         //zero the missing allele
         alleles_count[0] = 0;
-		for(int i=0;i<NUM_KINDS_BASES_F;i++){
-			if(alleles_count[i] != 0){
-				//numberOfAlleles++;
-				num = alleles_count[i];
-				//sumsq += num*num;
-				sum += num;
-				if (mincount < 0 || mincount > num){
-					mincount = num;
-				}
-			}
-		}
+        for(int i=0;i<NUM_KINDS_BASES_F;i++){
+                if(alleles_count[i] != 0){
+                        //numberOfAlleles++;
+                        num = alleles_count[i];
+                        //sumsq += num*num;
+                        sum += num;
+                        if (mincount < 0 || mincount > num){
+                                mincount = num;
+                        }
+                }
+        }
 
-		/*if (numberOfAlleles > 2){
-			throw new PedFileException("More than two alleles!");
-		}*/
+        //if (numberOfAlleles > 2){
+        //        throw new PedFileException("More than two alleles!");
+        //}
 
-		if (sum == 0){
-			maf = 0.0f;
-		}else{
-			if ((auxf = mincount/(double)sum) == 1.0f){
-				maf = 0.0f;//numa2/(numa1+numa2);
-			}else{
-				maf = auxf;
-			}
-		}
+        if (sum == 0){
+                maf = 0.0f;
+        }else{
+                if ((auxf = mincount/(double)sum) == 1.0f){
+                        maf = 0.0f;//numa2/(numa1+numa2);
+                }else{
+                        maf = auxf;
+                }
+        }
 
-		(result[i])->maf = maf;
+        (result[i])->maf = maf;
+*/
 
-		// TODO NORMAL - female count can't be done in VCF; Undefined behavior
-		//This will cause the values to show up as NA since there aren't enough females to calculate
+        // TODO NORMAL - female count can't be done in VCF; Undefined behavior
+        //This will cause the values to show up as NA since there aren't enough females to calculate
 //		if(female_count < 10 && is_chr_x){
 //			pvalue = DBL_MAX;
 //		}
 
-		// TODO MINOR - There are no families thus the mendelian errors can be calculated correctly
-		//this param is calculated when there are families (in a ped file for instance)
-		int mend_error_num = 0;
-		double genopct = get_geno_percent(called, missing_data);
-		pvalue = get_pvalue(founderHomCount, NUM_KINDS_BASES_F, founderHetCount);
-		(result[i])->rating = calc_rating(genopct, pvalue, mend_error_num, maf, params);
+        // TODO MINOR - There are no families thus the mendelian errors cant be calculated correctly
+        //this param is calculated when there are families (in a ped file for instance)
+/*
+        int mend_error_num = 0;
+*/
+        double genopct = get_geno_percent(called, missing_data);
+        pvalue = get_pvalue(founderHomCount, NUM_KINDS_BASES_F, founderHetCount);
+        (result[i])->rating = calc_rating(genopct, pvalue, mend_error_num, maf, params);
+        printf("%.*s) MAF = %.3f\tmendel_err = %d\trating = %d\n", record->id_len, record->id, result[i]->maf, mend_error_num, result[i]->rating);
 
         free(copy_buf);
     }

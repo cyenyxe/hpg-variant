@@ -89,17 +89,17 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         LOG_DEBUG_F("minimum quality filter = %d\n", *(options->quality->ival));
     }
     if (options->snp->count > 0) {
-        filter = snp_filter_new(strdup(*(options->snp->sval)));
+        filter = snp_filter_new(1);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
     }
     if (options->region->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region->sval)), 0, options_data->host_url, options_data->species, options_data->version);
+        filter = region_exact_filter_new(strdup(*(options->region->sval)), 0, NULL, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     if (options->region_file->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, options_data->host_url, options_data->species, options_data->version);
+        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, NULL, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
     }

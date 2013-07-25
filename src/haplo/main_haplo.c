@@ -44,12 +44,11 @@ int haplo_main(int argc, char *argv[], const char *configuration_file)
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
-        return CANT_READ_CONFIG_FILE;
+        return 1;
     }
     
      // Step 2: parse command-line options
     void **argtable = parse_haplo_options(argc, argv, haplo_opts, shared_opts);
-    
     
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_opts_data = new_shared_options_data(shared_opts);
@@ -60,41 +59,40 @@ int haplo_main(int argc, char *argv[], const char *configuration_file)
 //    		.entries_per_thread = (int) strtol(argv[4], (char **)NULL, 10),
 //    		.batch_size = 20,//(int) strtol(argv[5], (char **)NULL, 10),
 //    		.max_simultaneous_batches = INT_MAX};//(int) strtol(argv[2], (char **)NULL, 10)};
-	// Alloc memo for all markers; this way each thread which process a block will be able to write its
-	// share on unique positions
-	all_markers = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    // Alloc memo for all markers; this way each thread which process a block will be able to write its
+    // share on unique positions
+    all_markers = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
 
-	get_markers_array(all_markers, shared_opts_data, opts_data, &num_samples);
+    get_markers_array(all_markers, shared_opts_data, opts_data, &num_samples);
 
-	//clean markers
-	size_t idx =0, len = all_markers->size;
-	while (idx<len)
-		if (((marker *) array_list_get(idx, all_markers))->rating <= 0)
-		{
-			array_list_remove_at(idx, all_markers);--len;
-		} else
-			idx++;
+    //clean markers
+    size_t idx =0, len = all_markers->size;
+    while (idx<len)
+            if (((marker *) array_list_get(idx, all_markers))->rating <= 0)
+            {
+                    array_list_remove_at(idx, all_markers);--len;
+            } else
+                    idx++;
 
+    result = exec_gabriel(all_markers, num_samples);
 
-	result = exec_gabriel(all_markers, num_samples);
-        
-        printf("\nPrint blocks:\n");
-	for (unsigned int idx = 0; idx< result->size; idx++) {
-		array_list_t *a = (array_list_t *)array_list_get(idx, result);
-		for (unsigned int idx2 = 0; idx2< a->size; idx2++) {
-			int *e = (int *)array_list_get(idx2, a);
-			printf("%d ", *e);
-		}
-		printf("\n");
-	}
+    printf("\nPrint blocks (%zu):\n", result->size);
+    for (unsigned int idx = 0; idx< result->size; idx++) {
+        array_list_t *a = (array_list_t *)array_list_get(idx, result);
+        for (unsigned int idx2 = 0; idx2< a->size; idx2++) {
+                int *e = (int *)array_list_get(idx2, a);
+                printf("%d ", *e);
+        }
+        printf("\n");
+    }
 
-	array_list_free(all_markers, NULL);
-	array_list_free(result, NULL);
-	//free_marker_array(all_markers, samples_names->size);
-        free(haplo_opts);
-        //free_shared_options_data(shared_opts);
-        arg_freetable(argtable, haplo_opts->num_opts + shared_opts->num_options);
-        return EXIT_SUCCESS;
+    array_list_free(all_markers, NULL);
+    array_list_free(result, NULL);
+    //free_marker_array(all_markers, samples_names->size);
+    free(haplo_opts);
+    //free_shared_options_data(shared_opts);
+    arg_freetable(argtable, haplo_opts->num_opts + shared_opts->num_options);
+    return EXIT_SUCCESS;
 }
 
 int read_haplo_configuration(const char *filename, haplo_options_t *haplo_options, shared_options_t *shared_options) {
@@ -106,7 +104,7 @@ int read_haplo_configuration(const char *filename, haplo_options_t *haplo_option
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("Configuration file error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        return 1;
     }
 
     const char *tmp_string;
