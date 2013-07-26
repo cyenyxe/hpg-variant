@@ -66,7 +66,7 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
  * actually a matrix encoded as an array.
  * This is not really a real char array. We need its small dimension (8b) for storing the data associated with a sample
 	 * First 4 bits are the first base, next 4 are the second base of a SNP */
-static marker **get_markers(array_list_t *variants, const unsigned int num_samples,
+marker **get_markers(array_list_t *variants, const unsigned int num_samples,
 		const haplo_options_data_t *params);
 
 /**

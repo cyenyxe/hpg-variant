@@ -263,7 +263,7 @@ uint32_t countn = 0;
 			//} // end omp critical
 		} else {
 			//cleanup
-			 array_list_free(this_block, NULL);
+			 array_list_free(this_block, free);
 		}
 	}
 	//}// End parallel section

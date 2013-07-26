@@ -133,7 +133,7 @@ bool get_markers_array(array_list_t *all_markers, const shared_options_data_t *s
     return true;
 }
 
-static marker **get_markers(array_list_t *variants, const unsigned int num_samples,
+marker **get_markers(array_list_t *variants, const unsigned int num_samples,
 		const haplo_options_data_t *params) {
     char *copy_buf, *str_dup_buf;
     // allele 1 & 2 definition to be packed further in a unsigned char
@@ -169,44 +169,46 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
         numa2 = 0;
 
         // Create list of alternates
-        copy_buf = (char*) calloc (strlen(record->alternate)+1, sizeof(char));
-        strcat(copy_buf, record->alternate);
+        copy_buf = strndup(record->alternate, record->alternate_len);
         //for now use this, even if it is possible to have more than 1 base as an alternate
         char **alt = split(copy_buf, ",", &num_alternates);
-        (result[i])->alternates =  malloc(sizeof(*((result[i])->alternates))*num_alternates);
+        result[i]->alternates =  malloc(sizeof(*(result[i]->alternates))*num_alternates);
         for (uint32_t idxAlt=0;idxAlt<num_alternates; idxAlt++) {
-        	(result[i])->alternates[idxAlt] = base_to_int(alt[idxAlt][0]);
-        	//printf("alt %u\n", (result[i])->alternates[idxAlt]);
+        	result[i]->alternates[idxAlt] = base_to_int(alt[idxAlt][0]);
+        	//printf("alt %u\n", result[i]->alternates[idxAlt]);
         }
-        (result[i])->reference = base_to_int(record->reference[0]);//strtol(record->reference, NULL, 10);
-
-        (result[i])->num_alternates = num_alternates;
+        for (int j = 0; j < num_alternates; j++) {
+            free(alt[j]);
+        }
+        free(alt);
+        free(copy_buf);
+        
+        result[i]->reference = base_to_int(record->reference[0]);//strtol(record->reference, NULL, 10);
+        result[i]->num_alternates = num_alternates;
 
         // Get position where GT is in sample
-        str_dup_buf = (char *) strdup(record->format);
-        gt_pos = 0;//get_field_position_in_format("GT", str_dup_buf);
-        LOG_DEBUG_F("Genotype position = %d\n", gt_pos);
+        copy_buf = strndup(record->format, record->format_len);
+        gt_pos = get_field_position_in_format("GT", copy_buf);
+        free(copy_buf);
+        
         if (gt_pos < 0) { continue; }   // This variant has no GT field
-        (result[i])->samples = malloc(num_samples * sizeof(*((result[i])->samples)));
-        (result[i])->position = record->position;
+        result[i]->samples = malloc(num_samples * sizeof(*(result[i]->samples)));
+        result[i]->position = record->position;
         called = 0.0;
         missing_data = 0.0;
         female_count = 0;
         // check if the current chromosome record is the X one ( we have some special treatment for it)
         is_chr_x = is_x(record->chromosome);
-/*
-        printf("%.*s\n", record->id_len, record->id);
-        if (strncmp(record->id, "rs142725888", 11) == 0) printf("stop");
-*/
-        (result[i])->is_x = is_chr_x;
+        result[i]->is_x = is_chr_x;
         founderHetCount = 0;
         memset(founderHomCount, 0, sizeof(*founderHomCount) * NUM_KINDS_BASES_F);
 
         // Traverse samples and find the existing and missing alleles
         for(uint32_t j = 0; j < num_samples; j++) {
-            char *sample = (char *) array_list_get(j, record->samples);
+            char *sample = strdup((char *) array_list_get(j, record->samples));
             // Get to GT position
-            alleles_code = get_alleles(strdup(sample), gt_pos, &allele1, &allele2);
+            alleles_code = get_alleles(sample, gt_pos, &allele1, &allele2);
+            free(sample);
 
             // We need to determine how many times the reference and the alternates appear in the file
             // We consider for now that ONLY ONE alt EXISTS
@@ -215,8 +217,8 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
 
             // Translate allele to a base to be easier to handle later; we don't need the idx, we need the
             // base representation
-            a1 = allele_translation(allele1, (result[i])->alternates, (result[i])->reference);
-            a2 = allele_translation(allele2, (result[i])->alternates, (result[i])->reference);
+            a1 = allele_translation(allele1, result[i]->alternates, result[i]->reference);
+            a2 = allele_translation(allele2, result[i]->alternates, result[i]->reference);
             // before we actually prepare the data for D' and any further execution, we need to determine
             // some statistics from the original file to be used when determining the MAF for instance
             // DISABLED BECAUSE OF THE HAPLOVIEW CODE
@@ -267,15 +269,15 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
 
             // create the magic variable with the 2 alleles (first one on the first 4 bits, second one
             // on the next 4 bits)
-            (result[i])->samples[j] = (a1 << NUM_BITS_SHIFT) + a2 ;
+            result[i]->samples[j] = (a1 << NUM_BITS_SHIFT) + a2 ;
         }
         
         // Check the type of ref allele determination required and switch if necessary (HaploView mode)
         // TODO after testing, remove this Haploview mode! Is it sooo incorrect
         if (alleles_count[1] >= alleles_count[0]) {
-                auxuc = (result[i])->reference;
-                (result[i])->reference = (result[i])->alternates[0];
-                (result[i])->alternates[0] = auxuc;
+                auxuc = result[i]->reference;
+                result[i]->reference = result[i]->alternates[0];
+                result[i]->alternates[0] = auxuc;
         }// Else don't change anything
 
         file_stats_t *file_stats = file_stats_new();
@@ -290,35 +292,26 @@ static marker **get_markers(array_list_t *variants, const unsigned int num_sampl
             }
         }
         result[i]->maf = maf;
-        int mend_error_num = variant_stats->mendelian_errors;
+        double missing_genotypes_percent = 1 - (double) variant_stats->missing_genotypes / num_samples ;
         
+        double pvalue = get_pvalue(founderHomCount, NUM_KINDS_BASES_F, founderHetCount);
+        result[i]->rating = calc_rating(missing_genotypes_percent, pvalue, variant_stats->mendelian_errors, maf, params);
+        LOG_DEBUG_F("%.*s) MAF = %.3f\tmendel_err = %d\trating = %d\n", record->id_len, record->id, 
+                    result[i]->maf, variant_stats->mendelian_errors, result[i]->rating);
+
         list_decr_writers(output_list);
         list_item_free(item);
         variant_stats_free(variant_stats);
         file_stats_free(file_stats);
-        
-        double genopct = get_geno_percent(called, missing_data);
-        double pvalue = get_pvalue(founderHomCount, NUM_KINDS_BASES_F, founderHetCount);
-        (result[i])->rating = calc_rating(genopct, pvalue, mend_error_num, maf, params);
-        LOG_DEBUG_F("%.*s) MAF = %.3f\tmendel_err = %d\trating = %d\n", record->id_len, record->id, result[i]->maf, mend_error_num, result[i]->rating);
-
-        free(copy_buf);
     }
     free(founderHomCount);
     return result;
-}/*get_markers*/
+}
+
 
 inline static bool is_x(const char *chromosome) {
     return strcmp(chromosome, "X") == 0 || strcmp(chromosome, "x") == 0;
-}/*is_x*/
-
-inline static double get_geno_percent(double called, double missing) {
-	if (called == 0){
-		return 0;
-	} else{
-		return 100.0*(called/(called+missing));
-	}
-} /*get_geno_percent*/
+}
 
 inline static int calc_rating(double genopct, double pval, int menderr, double maf, const haplo_options_data_t *options) {
     int rating = 0;
