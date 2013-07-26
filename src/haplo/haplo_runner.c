@@ -30,6 +30,7 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
         LOG_FATAL("VCF file does not exist!\n");
     }
     
+/*
     ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
     if (!ped_file) {
         LOG_FATAL("PED file does not exist!\n");
@@ -41,6 +42,7 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
     }
+*/
     
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
@@ -83,10 +85,12 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
             
             volatile int initialization_done = 0;
             // Pedigree information
+/*
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
+*/
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -180,12 +184,42 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
+/*
                 array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+*/
+                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Get markers from this batch
                     // TODO - use data structures from our API
                     marker **segment_markers = get_markers(batch->records, vcf_file->samples_names->size, options_data);
                     array_list_insert_all((void **) segment_markers, batch->records->size, all_markers);
+                    
+                    // Keep only markers with a rating greater than zero
+                    size_t idx = 0, len = all_markers->size;
+                    while (idx < len) {
+                        if (((marker *) array_list_get(idx, all_markers))->rating <= 0) {
+                            array_list_remove_at(idx, all_markers);
+                            --len;
+                        } else {
+                            idx++;
+                        }
+                    }
+
+                    // Run Gabriel
+                    array_list_t *result = exec_gabriel(all_markers, vcf_file->samples_names->size, options_data);
+
+                    printf("\nPrint blocks (%zu):\n", result->size);
+                    for (unsigned int idx = 0; idx< result->size; idx++) {
+                        array_list_t *a = (array_list_t *)array_list_get(idx, result);
+                        for (unsigned int idx2 = 0; idx2< a->size; idx2++) {
+                                int *e = (int *)array_list_get(idx2, a);
+                                printf("%d ", *e);
+                        }
+                        printf("\n");
+                    }
+
+                    array_list_clear(all_markers, free);
+                    array_list_free(result, NULL);
                 }
                 
                 // Write records that passed and failed filters to separate files, and free them
@@ -214,9 +248,11 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
                 free(filters);
             }
             
+/*
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (individuals) { free(individuals); }
             free(families);
+*/
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -231,8 +267,8 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
-            LOG_INFO_F("TDT output filename = %s\n", path);
+            FILE *fd = get_output_file(shared_options_data, "hpg-variant.haplo", &path);
+            LOG_INFO_F("Haplotypes output filename = %s\n", path);
             
             double start = omp_get_wtime();
             
@@ -264,7 +300,9 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
     
     free(output_list);
     vcf_close(vcf_file);
+/*
     ped_close(ped_file, 1);
+*/
     
     return ret_code;
 }

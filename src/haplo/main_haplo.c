@@ -20,6 +20,7 @@
  */
 
 #include "main_haplo.h"
+#include "haplo_runner.h"
 
 int main(int argc, char *argv[]) {
 
@@ -77,44 +78,15 @@ int main(int argc, char *argv[]) {
  
     init_log_custom(shared_options_data->log_level, 1, "hpg-var-effect.log", "w");
     
-    // This is the return list
-    array_list_t *result;
-    unsigned int num_samples = 0;
-        
-    // Alloc memo for all markers; this way each thread which process a block will be able to write its
-    // share on unique positions
-    array_list_t *all_markers = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-    get_markers_array(all_markers, shared_options_data, haplo_options_data, &num_samples);
+    // Step 5: Perform the requested task
+    int ret_code = run_haplotyes_calculation(shared_options_data, haplo_options_data);
 
-    //clean markers
-    size_t idx =0, len = all_markers->size;
-    while (idx<len) {
-        if (((marker *) array_list_get(idx, all_markers))->rating <= 0) {
-            array_list_remove_at(idx, all_markers);--len;
-        } else {
-            idx++;
-        }
-    }
-
-    result = exec_gabriel(all_markers, num_samples, haplo_options_data);
-
-    printf("\nPrint blocks (%zu):\n", result->size);
-    for (unsigned int idx = 0; idx< result->size; idx++) {
-        array_list_t *a = (array_list_t *)array_list_get(idx, result);
-        for (unsigned int idx2 = 0; idx2< a->size; idx2++) {
-                int *e = (int *)array_list_get(idx2, a);
-                printf("%d ", *e);
-        }
-        printf("\n");
-    }
-
-    array_list_free(all_markers, NULL);
-    array_list_free(result, NULL);
     //free_marker_array(all_markers, samples_names->size);
     free(haplo_options);
     //free_shared_options_data(shared_opts);
     arg_freetable(argtable, 32);
-    return EXIT_SUCCESS;
+    
+    return ret_code;
 }
 
 

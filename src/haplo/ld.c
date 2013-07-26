@@ -268,7 +268,11 @@ uint32_t countn = 0;
 	}
 	//}// End parallel section
 
-	//list_init("output", num_threads, INT_MAX, result);
+        for (size_t i = 0; i < square(markers_num); i++) {
+            if (pairs_table[i]) {
+                free(pairs_table[i]);
+            }
+        }
 	free(pairs_table);
 	free(used_in_block);
 	free(strong_pairs);
@@ -278,12 +282,11 @@ uint32_t countn = 0;
 
 
 pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int num_samples) {
-    pairwise_linkage **stats_mat_result, *aux;
     size_t markers_num = markers_arr->size;
     int idxl_real = 0;
     int idxc_real = 0;
     // Alloc the necessary memo for all linkages
-    stats_mat_result = (pairwise_linkage **) malloc(sizeof(pairwise_linkage*) * square(markers_num));
+    pairwise_linkage **stats_mat_result = (pairwise_linkage **) calloc(sizeof(pairwise_linkage*), square(markers_num));
     printf("pairwise linkage table: \n");
 
     for (size_t idxL = 0; idxL < markers_num-1; idxL++) {
@@ -297,13 +300,13 @@ pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int 
             if (MAX_DISTANCE > 0) {
                 if (((marker *)array_list_get(idxC, markers_arr))->position -
                         ((marker *)array_list_get(idxL, markers_arr))->position <= MAX_DISTANCE) {
-                    aux = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
+                    pairwise_linkage *aux = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
                     stats_mat_result[idxL * markers_num + idxC] = aux;
                     if (aux) {
                         printf("%04.3f\t%04.2f\t%04.2f\t%04.2f\n", aux->dprime, aux->lod, aux->ci_low, aux->ci_high);
                     }
                 } else {
-                        stats_mat_result[idxL * markers_num + idxC] = NULL;
+                    stats_mat_result[idxL * markers_num + idxC] = NULL;
                 }
             } else {//we need all the possible combinations when the distance between SNPs is not specified
                 stats_mat_result[idxL * markers_num + idxC] = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
@@ -327,7 +330,7 @@ pairwise_linkage *compute_pairwise_linkage( array_list_t *markers_arr, int pos1,
         return NULL;
     }
 
-    pairwise_linkage *aux_pair;
+    pairwise_linkage *aux_pair = malloc(sizeof(*aux_pair));
     // the denominator used to calc D'
     double min, min1, min2, ci_low, ci_high;
     // Get the value of D with D = fAA*fBB - fAB*fBA, where f stands for frequency
@@ -350,7 +353,6 @@ pairwise_linkage *compute_pairwise_linkage( array_list_t *markers_arr, int pos1,
     double tmp[NUM_BASES];
     double lsurface[101];
 
-    aux_pair = malloc(sizeof(*aux_pair));
 
    //aux = markers_arr[pos1];
     bases_map_two_m1[marker1->reference] = 1;
