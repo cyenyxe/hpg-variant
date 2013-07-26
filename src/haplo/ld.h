@@ -1,9 +1,24 @@
 /*
- * ld.h
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2012 Andrei Alic
  *
- *  Created on: Jul 4, 2012
- *      Author: Andrei Alic
+ * This file is part of hpg-variant.
+ *
+ * hpg-variant is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * hpg-variant is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifndef LD_H_
 #define LD_H_
 
@@ -34,7 +49,7 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 
 //#include "hpg_vcf_tools_utils.h"
-#include "globals.h"
+#include "haplo.h"
 
 /** Different information about a pair of SNPs, kept in a table having these properties for all
  * considered SNPs */
@@ -68,7 +83,8 @@ int is_same_ref(char **alt1, char **alt2, int numAlts1, int numAlts2);
 int is_alternate(char *ref, char **alt, int numAlts);
 pairwise_linkage *compute_pairwise_linkage(array_list_t *markers_arr, int pos1, int pos2, int num_samples);
 double compute_dprime(double *prob_haps, double *num_haps, double *known, double pA2, double pB2);
-array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples);
+
+array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples, haplo_options_data_t *options);
 
 /**
  * Free the markers array and their elements (deep free)

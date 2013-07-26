@@ -1,9 +1,24 @@
 /*
- * ld.c
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2012 Andrei Alic
  *
- *  Created on: Jul 4, 2012
- *      Author: Andrei Alic
+ * This file is part of hpg-variant.
+ *
+ * hpg-variant is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * hpg-variant is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "ld.h"
 
 /** Easier to read, define the square for macro expansion */
@@ -13,57 +28,34 @@
 #define AB  1
 #define BA  2
 #define BB  3
-#define AMAJ  0
-#define AMIN  1
-#define BMAJ  2
-#define BMIN  3
-#define MIN_LIM_PROBS_HAPLOIDS 1e-10
-
 
 /** Pre-compute the val of ln(10) to avoid the calculus repetition (each time we need the log) */
 #define LN10 2.302585
 
-#define TOLERANCE 1e-8 //in JAVA is 0.00000001
-
-#define MAXDIST_DEFAULT 500
-
-#define FLOAT_PRECISION 0.00001f
-
 /** All the values under this threshold are considered to be 0 */
 const double LIMIT_0 = 0.00000001;
+#define TOLERANCE 1e-8 //in JAVA is 0.00000001
 
-pairwise_linkage *pairs_table;
-variant_stats_t **output_arr;
+/** max distance allowed between 2 SNP when computing the table of D'*/
+#define MAX_DISTANCE    500000
 
 // Settings for the block finding algorithm
 double cutHighCI = 0.98;
-double cutLowCI = 0.70; //originally 0.7, but for testing purposes it has been lowered
-double mafThresh = 0.05;
+double cutLowCI = 0.70;
 double cutLowCIVar[] = {0,0,0.80,0.50,0.50};
 double maxDist[] = {0,0,20000,30000,1000000};
 double recHighCI = 0.90;
 double informFrac = 0.95;
-/** max distance allowed between 2 SNP when computing the table of D'*/
-int max_distance = MAXDIST_DEFAULT*1000;
-
-//#define DEBUG
 
 
+inline static bool filter_rating(marker *marker_check) {
+    return marker_check->rating > 0;
+}
 
-// ACTUAL IMPLEMENTATION OF THE FUNCTIONS //
-
-inline static bool filter_rating(marker *marker_check)
-{
-	if (marker_check->rating > 0)
-		return true;
-	else
-		return false;
-} /*filter_rating*/
-
-array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwise_linkage *pairs_table) {
+array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples, haplo_options_data_t *options) { //pairwise_linkage *pairs_table) {
 	array_list_t *blocks, *this_block;
 	pairwise_linkage **pairs_table, *apair;
-	size_t markers_num, *cpyP, numStrong = 0, count = 0, blocks_num = 0, block_idx = 0, numRec = 0, numInGroup = 0, strong_pairs_num = 0;
+	size_t markers_num, *cpyP, numStrong = 0, count = 0, blocks_num = 0, block_idx = 0, numRec = 0, num_in_group = 0, strong_pairs_num = 0;
 
 	//Vector blocks = new Vector();
 	//first set up a filter of markers which fail the MAF threshold
@@ -77,9 +69,6 @@ array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwis
 	pairs_table = generate_pairwise_linkage_tbl(markers_arr, num_samples);
 	//stats_mat_result = generate_pairwise_linkage_tbl(stats_num, stats_arr);
 
-	// TODO MAJOR - set rating for each marker (which seems to be negative for false) and that's why 2 markers are filtered out by the program
-	// TODO MAJOR - create an array for filtered markers and another one with the wants that were filtered out
-
 	markers_num = markers_arr->size; /*Here is not marker_num - is the filtered markers num with objects having a positive rating */
 
 	strong_pairs = (marker_info *) malloc(sizeof(*strong_pairs) * ((markers_num-1)*markers_num/2));
@@ -90,26 +79,20 @@ array_list_t *exec_gabriel(array_list_t *markers_arr, int num_samples){//pairwis
 	size_t x = 0;
 	while (x < markers_arr->size){
             marker *temp = (marker *)array_list_get(x, markers_arr);
-            if (filter_rating(temp))
-            {
-                    //checks minor allele frequency
-                    if (temp->maf < mafThresh){
-                            skip_marker[x] = true;
-                    }else{
-                            skip_marker[x] = false;
-                    }
-
+            if (filter_rating(temp)) {
+                //checks minor allele frequency
+                skip_marker[x] = temp->maf < options->mafcut;
             }
-            printf("%d = %.3f -> ", temp->position, temp->maf);
-            printf("%d\n", skip_marker[x]);
+            
+            LOG_DEBUG_F("%d = %.3f -> %d\n", temp->position, temp->maf, skip_marker[x]);
 //		else
 //			skip_marker[x] = true;
             x++;
 //		else
 //			array_list_remove_at(x, markers_arr);
 	}
-        printf("\n");
 //}// End #pragma omp parallel
+        
 	markers_num = markers_arr->size;/*Here is not marker_num - is the filtered markers num with objects having a positive rating */
 uint32_t countn = 0;
         //#pragma omp parallel shared(markers_num, markers_arr, skip_marker)
@@ -128,10 +111,6 @@ uint32_t countn = 0;
 */
                 apair = pairs_table[x*markers_num + y];
                 
-/*
-                printf("- (%d, %d)\n", x, y);
-*/
-                
                 if (apair != NULL &&
                     (!skip_marker[x] && !skip_marker[y]) &&
                     apair->lod >= -90 &&
@@ -147,7 +126,7 @@ uint32_t countn = 0;
                     strong_pairs[strong_pairs_num].marker_p1 = x;
                     strong_pairs[strong_pairs_num].marker_p2 = y;
                     strong_pairs[strong_pairs_num++].sep = sep;
-                    printf("+ (%d, %d, %ld)\n", x, y, sep);
+                    LOG_DEBUG_F("+ (%d, %d, %ld)\n", x, y, sep);
                 }
             }
 	}
@@ -156,15 +135,18 @@ uint32_t countn = 0;
 
 	strong_pairs = realloc(strong_pairs, sizeof(*strong_pairs) *strong_pairs_num);
 
-	/*for (int i=0;i<strong_pairs_num;i++)
-		printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1,
-				strong_pairs[i].marker_p2, strong_pairs[i].sep);*/
+/*
+	for (int i=0;i<strong_pairs_num;i++)
+            printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1, strong_pairs[i].marker_p2, strong_pairs[i].sep);
+*/
+        
 	// Sort descending the strong pairs
 	qsort(strong_pairs, strong_pairs_num, sizeof(*strong_pairs), compare_markers);
 
+/*
 	for (int i=0;i<strong_pairs_num;i++)
-            printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1,
-                                            strong_pairs[i].marker_p2, strong_pairs[i].sep);
+            printf("m1=%d m2=%d sep=%ld\n", strong_pairs[i].marker_p1, strong_pairs[i].marker_p2, strong_pairs[i].sep);
+*/
 
 	//@ Now take this list of pairs with "strong LD" and construct blocks
 	used_in_block = (bool *) calloc(markers_num + 1, sizeof(*used_in_block));
@@ -181,7 +163,7 @@ uint32_t countn = 0;
 //	{
 //#pragma omp parallel for nowait
 	for(size_t v=0; v<strong_pairs_num;v++) {
-		numStrong = 0; numRec = 0; numInGroup = 0;
+		numStrong = 0; numRec = 0; num_in_group = 0;
 		uint32_t first = strong_pairs[v].marker_p1;
 		uint32_t last =  strong_pairs[v].marker_p2;
 		uint64_t sep = strong_pairs[v].sep;
@@ -195,11 +177,11 @@ uint32_t countn = 0;
 
 		//next, count the number of markers in the block.
 		for (size_t x = first; x <=last ; x++){
-			if(!skip_marker[x]) numInGroup++;
+			if(!skip_marker[x]) num_in_group++;
 		}
 
 		//skip it if it is too long in bases for it's size in markers
-		if (numInGroup < 4 && sep > maxDist[numInGroup]) continue;
+		if (num_in_group < 4 && sep > maxDist[num_in_group]) continue;
 
 		//this_block[0] = first;
 		cpyP = (size_t *) malloc(sizeof(*cpyP));
@@ -228,8 +210,8 @@ uint32_t countn = 0;
 						if (lod == 0 && lowCI == 0 && highCI == 0) continue; //skip bad markers
 
 						//for small blocks use different CI cutoffs
-						if (numInGroup < 5){
-							if (lowCI > cutLowCIVar[numInGroup] && highCI >= cutHighCI) numStrong++;
+						if (num_in_group < 5){
+							if (lowCI > cutLowCIVar[num_in_group] && highCI >= cutHighCI) numStrong++;
 						}else{
 							if (lowCI > cutLowCI && highCI >= cutHighCI) numStrong++; //strong LD
 						}
@@ -242,9 +224,9 @@ uint32_t countn = 0;
 		//printf("size %d\n", this_block->size);
 #endif
 		//change the definition somewhat for small blocks
-		if (numInGroup > 3){
+		if (num_in_group > 3){
 			if (numStrong + numRec < 6) continue;
-		}else if (numInGroup > 2){
+		}else if (num_in_group > 2){
 			if (numStrong + numRec < 3) continue;
 		}else{
 			if (numStrong + numRec < 1) continue;
@@ -292,75 +274,64 @@ uint32_t countn = 0;
 	free(strong_pairs);
 	free(skip_marker);
 	return blocks;
-}/* execGabriel */
+}
 
 
 pairwise_linkage **generate_pairwise_linkage_tbl(array_list_t *markers_arr, int num_samples) {
-	pairwise_linkage **stats_mat_result, *aux;
-	size_t markers_num = markers_arr->size;
-	int idxl_real = 0;
-	int idxc_real = 0;
-	// Alloc the necessary memo for all linkages
-	stats_mat_result = (pairwise_linkage **) malloc(sizeof(pairwise_linkage*) * square(markers_num));
-	printf("pairwise linkage table: \n");
-        
-	for (size_t idxL = 0; idxL < markers_num-1; idxL++) {
-		for (size_t idxC = idxL+1; idxC < markers_num; idxC++) {
-			printf("[%d,%d] %ld - %ld = %d (<= %d?)\n", idxC, idxL, 
-                                ((marker *)array_list_get(idxC, markers_arr))->position,
-                                ((marker *)array_list_get(idxL, markers_arr))->position,
-                                ((marker *)array_list_get(idxC, markers_arr))->position - 
-                                ((marker *)array_list_get(idxL, markers_arr))->position,
-                                max_distance);
-			if (max_distance > 0) {
-				if (((marker *)array_list_get(idxC, markers_arr))->position -
-						((marker *)array_list_get(idxL, markers_arr))->position <= max_distance) {
-					aux = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
-					stats_mat_result[idxL*markers_num + idxC] = aux;
-					if (aux != NULL 
-                                            // && idxC == 18 && idxL == 17
-							) {
-						char dprint[30];char lodprint[30];char clprint[30];char chprint[30];
-						sprintf(dprint, "%04.3f", aux->dprime );
-						sprintf(lodprint, "%04.2f", aux->lod );
-						sprintf(clprint, "%04.2f", aux->ci_low );
-						sprintf(chprint, "%04.2f", aux->ci_high );
-						printf("%7s/%6s/%6s/%6s\n", dprint, lodprint, clprint, chprint);
-					}
-				} else {
-					stats_mat_result[idxL*markers_num + idxC] = NULL;
-				}
-			} else {//we need all the possible combinations when the distance between SNPs is not specified
-				stats_mat_result[idxL*markers_num + idxC] = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);;
-			}
-		}
-	}
+    pairwise_linkage **stats_mat_result, *aux;
+    size_t markers_num = markers_arr->size;
+    int idxl_real = 0;
+    int idxc_real = 0;
+    // Alloc the necessary memo for all linkages
+    stats_mat_result = (pairwise_linkage **) malloc(sizeof(pairwise_linkage*) * square(markers_num));
+    printf("pairwise linkage table: \n");
 
-	// We return the matrix with the linkage between each 2 elements from the stats array
-	// It is up to the main mechanism to free the space alloc'ed by this function
-	return stats_mat_result;
-}/*generate_pairwise_linkage_tbl*/
+    for (size_t idxL = 0; idxL < markers_num-1; idxL++) {
+        for (size_t idxC = idxL+1; idxC < markers_num; idxC++) {
+            LOG_DEBUG_F("[%d,%d] %ld - %ld = %d (<= %d?)\n", idxC, idxL, 
+                        ((marker *)array_list_get(idxC, markers_arr))->position,
+                        ((marker *)array_list_get(idxL, markers_arr))->position,
+                        ((marker *)array_list_get(idxC, markers_arr))->position - 
+                        ((marker *)array_list_get(idxL, markers_arr))->position,
+                        MAX_DISTANCE);
+            if (MAX_DISTANCE > 0) {
+                if (((marker *)array_list_get(idxC, markers_arr))->position -
+                        ((marker *)array_list_get(idxL, markers_arr))->position <= MAX_DISTANCE) {
+                    aux = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
+                    stats_mat_result[idxL * markers_num + idxC] = aux;
+                    if (aux) {
+                        printf("%04.3f\t%04.2f\t%04.2f\t%04.2f\n", aux->dprime, aux->lod, aux->ci_low, aux->ci_high);
+                    }
+                } else {
+                        stats_mat_result[idxL * markers_num + idxC] = NULL;
+                }
+            } else {//we need all the possible combinations when the distance between SNPs is not specified
+                stats_mat_result[idxL * markers_num + idxC] = compute_pairwise_linkage(markers_arr, idxL, idxC, num_samples);
+            }
+        }
+    }
+
+    // We return the matrix with the linkage between each 2 elements from the stats array
+    // It is up to the main mechanism to free the space alloc'ed by this function
+    return stats_mat_result;
+}
 
 
 pairwise_linkage *compute_pairwise_linkage( array_list_t *markers_arr, int pos1, int pos2, int num_samples) {
+    marker *marker1 = ((marker *)array_list_get(pos1, markers_arr));
+    marker *marker2 = ((marker *)array_list_get(pos2, markers_arr));
+    //printf("%2.4f/%2.4f ", marker1->maf, marker2->maf);
+    
+    //check for non-polymorphic markers
+    if (marker1->maf < LIMIT_0 || marker2->maf < LIMIT_0){
+        return NULL;
+    }
 
-	marker *marker1 = ((marker *)array_list_get(pos1, markers_arr));
-	marker *marker2 = ((marker *)array_list_get(pos2, markers_arr));
-	//printf("%2.4f/%2.4f ", marker1->maf, marker2->maf);
-	//check for non-polymorphic markers
-	if (marker1->maf < LIMIT_0 || marker2->maf < LIMIT_0){
-		return NULL;
-	}
-
-	if (pos1 == 8 && pos2 == 9) {
-		int debug = 0;
-	}
-
-	pairwise_linkage *aux_pair;
+    pairwise_linkage *aux_pair;
     // the denominator used to calc D'
-	double min, min1, min2, ci_low, ci_high;
-	// Get the value of D with D = fAA*fBB - fAB*fBA, where f stands for frequency
-	double d;
+    double min, min1, min2, ci_low, ci_high;
+    // Get the value of D with D = fAA*fBB - fAB*fBA, where f stands for frequency
+    double d;
     // We need 4 elements since there are 4 combinations between 2 SNPs, A1A2 and B1B2
     double *known = (double *) calloc(NUM_BASES, sizeof(*known));
     int *bases_map_two_m1 = (int *) calloc(NUM_KINDS_BASES_F, sizeof(*bases_map_two_m1));

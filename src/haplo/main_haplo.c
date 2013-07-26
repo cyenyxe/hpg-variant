@@ -1,80 +1,102 @@
 /*
- ============================================================================
- Name        : haploviewc.c
- Author      : 
- Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
- ============================================================================
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2012 Andrei Alic
+ *
+ * This file is part of hpg-variant.
+ *
+ * hpg-variant is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * hpg-variant is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main_haplo.h"
 
-/**
- * argv[1] = input file full path
- * argv[2] = max_batches
- * argv[3] = number of threads
- * argv[4] = entries per thread
- * argv[5] = the size of the batch
- * argv[6] = how to determine the main allele; 1 - use Haploview approach and set the main as the one
- * 			having the most appearances or 2 - use the reference and alternates from the VCF file
- */
-int main( int argc, char **argv) {
-    
-	return haplo_main(argc, argv, "haplo.conf");
-}
+int main(int argc, char *argv[]) {
 
-int haplo_main(int argc, char *argv[], const char *configuration_file)
-{
-    array_list_t *all_markers, *result;
-	// This is the return list
-	unsigned int num_samples = 0;
-        
-        
     /* ******************************
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_t *shared_opts = new_shared_cli_options(0);
-    haplo_options_t *haplo_opts = new_haplo_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
+    haplo_options_t *haplo_options = new_haplo_cli_options();
+    void **argtable;
+
+    // If no arguments or only -h / --help are provided, show usage
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        argtable = merge_haplo_options(haplo_options, shared_options, arg_end(haplo_options->num_options + shared_options->num_options));
+        show_usage(argv[0], argtable, 32);
+        arg_freetable(argtable, 32);
+        return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("Haplotypes");
+        return 0;
+    }
+
+    /* ******************************
+     * 	    Execution steps	    *
+     * ******************************/
+
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-haplo.log", "w");
+    
+    array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
+    const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
     
     // Step 1: read options from configuration file
-    int config_errors = read_shared_configuration(configuration_file, shared_opts);
-    config_errors &= read_haplo_configuration(configuration_file, haplo_opts, shared_opts);
-    LOG_INFO_F("Config read with errors = %d\n", config_errors);
+    int config_errors = read_shared_configuration(configuration_file, shared_options);
+    config_errors &= read_haplo_configuration(configuration_file, haplo_options, shared_options);
     
     if (config_errors) {
-        return 1;
+        LOG_FATAL("Configuration file read with errors\n");
+        return CANT_READ_CONFIG_FILE;
+    }
+
+    // Step 2: parse command-line options
+    argtable = parse_haplo_options(argc, argv, haplo_options, shared_options);
+    
+    // Step 3: check that all options are set with valid values
+    // Mandatory options that couldn't be read from the config file must be set via command-line
+    // If not, return error code!
+    int check_haplo_opts = verify_haplo_options(haplo_options, shared_options);
+    if (check_haplo_opts > 0) {
+        return check_haplo_opts;
     }
     
-     // Step 2: parse command-line options
-    void **argtable = parse_haplo_options(argc, argv, haplo_opts, shared_opts);
-    
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
-    shared_options_data_t *shared_opts_data = new_shared_options_data(shared_opts);
-    haplo_options_data_t *opts_data = new_haplo_options_data(haplo_opts);
+    shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
+    haplo_options_data_t *haplo_options_data = new_haplo_options_data(haplo_options);
  
-//    conf_params cparams = {.file_path = argv[1],
-//    		.num_threads = (int) strtol(argv[3], (char **)NULL, 10),
-//    		.entries_per_thread = (int) strtol(argv[4], (char **)NULL, 10),
-//    		.batch_size = 20,//(int) strtol(argv[5], (char **)NULL, 10),
-//    		.max_simultaneous_batches = INT_MAX};//(int) strtol(argv[2], (char **)NULL, 10)};
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-effect.log", "w");
+    
+    // This is the return list
+    array_list_t *result;
+    unsigned int num_samples = 0;
+        
     // Alloc memo for all markers; this way each thread which process a block will be able to write its
     // share on unique positions
-    all_markers = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-
-    get_markers_array(all_markers, shared_opts_data, opts_data, &num_samples);
+    array_list_t *all_markers = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    get_markers_array(all_markers, shared_options_data, haplo_options_data, &num_samples);
 
     //clean markers
     size_t idx =0, len = all_markers->size;
-    while (idx<len)
-            if (((marker *) array_list_get(idx, all_markers))->rating <= 0)
-            {
-                    array_list_remove_at(idx, all_markers);--len;
-            } else
-                    idx++;
+    while (idx<len) {
+        if (((marker *) array_list_get(idx, all_markers))->rating <= 0) {
+            array_list_remove_at(idx, all_markers);--len;
+        } else {
+            idx++;
+        }
+    }
 
-    result = exec_gabriel(all_markers, num_samples);
+    result = exec_gabriel(all_markers, num_samples, haplo_options_data);
 
     printf("\nPrint blocks (%zu):\n", result->size);
     for (unsigned int idx = 0; idx< result->size; idx++) {
@@ -89,176 +111,21 @@ int haplo_main(int argc, char *argv[], const char *configuration_file)
     array_list_free(all_markers, NULL);
     array_list_free(result, NULL);
     //free_marker_array(all_markers, samples_names->size);
-    free(haplo_opts);
+    free(haplo_options);
     //free_shared_options_data(shared_opts);
-    arg_freetable(argtable, 25);
+    arg_freetable(argtable, 32);
     return EXIT_SUCCESS;
-}
-
-int read_haplo_configuration(const char *filename, haplo_options_t *haplo_options, shared_options_t *shared_options) {
-    if (filename == NULL || haplo_options == NULL || shared_options == NULL) {
-        return -1;
-    }
-
-    config_t *config = (config_t*) calloc (1, sizeof(config_t));
-    int ret_code = config_read_file(config, filename);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("Configuration file error: %s\n", config_error_text(config));
-        return 1;
-    }
-
-    const char *tmp_string;
-    
-    // Read number of threads that will make request to the web service
-    ret_code = config_lookup_int(config, "haplo.num-threads", shared_options->num_threads->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
-    }
-
-    // Read maximum number of batches that can be stored at certain moment
-    ret_code = config_lookup_int(config, "haplo.max-batches", shared_options->max_batches->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
-    }
-    
-    // Read size of a batch (in lines or bytes)
-    ret_code = config_lookup_int(config, "haplo.batch-lines", shared_options->batch_lines->ival);
-    ret_code |= config_lookup_int(config, "haplo.batch-bytes", shared_options->batch_bytes->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
-    } 
-//     else {
-//         LOG_INFO_F("batch-lines = %ld\n", *(shared_options->batch_lines->ival));
-//     }
-    
-    // Read host URL
-    ret_code = config_lookup_string(config, "haplo.url", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->host_url->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
-                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
-    }
-    
-    // Read version
-    ret_code = config_lookup_string(config, "haplo.version", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->version->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("version = %s (%zu chars)\n",
-                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
-    }
-    
-    // Read method for determining the ref and minor alleles 
-    ret_code = config_lookup_int(config, "haplo.alleleref", haplo_options->alleleref->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("alleleref = %ld\n", *(haplo_options->alleleref->ival));
-    }
-    
-    // Read HWCUT 
-    ret_code = config_lookup_float(config, "haplo.hwcut", haplo_options->hwcut->dval);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("hwcut = %lf\n", *(haplo_options->hwcut->dval));
-    }
-    
-    // Read Failed genotype cut
-    ret_code = config_lookup_int(config, "haplo.fgcut", haplo_options->fgcut->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("fgcut = %lf\n", *(haplo_options->fgcut->ival));
-    }
-    
-    // Read Number of mendelian errors for cutting
-    ret_code = config_lookup_int(config, "haplo.mendcut", haplo_options->mendcut->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("mendcut = %lf\n", *(haplo_options->mendcut->ival));
-    }
-    
-    // Read Limit for the minor allele frequency when cutting
-    ret_code = config_lookup_float(config, "haplo.mafcut", haplo_options->mafcut->dval);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("mafcut = %lf\n", *(haplo_options->mafcut->dval));
-    }
-
-    config_destroy(config);
-    free(config);
-
-    return 0;
-}
-
-void **parse_haplo_options(int argc, char *argv[], haplo_options_t *haplo_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(haplo_options->num_opts + shared_options->num_options);
-    void **argtable = merge_haplo_options(haplo_options, shared_options, end);
-    
-    int num_errors = arg_parse(argc, argv, argtable);
-    if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-variant");
-    }
-    
-    return argtable;
-}
-
-void **merge_haplo_options(haplo_options_t *haplo_opts, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (25 * sizeof(void*));
-    tool_options[0] = shared_options->vcf_filename;
-    tool_options[1] = shared_options->ped_filename;
-    tool_options[2] = shared_options->output_filename;
-    tool_options[3] = shared_options->output_directory;
-    
-    tool_options[4] = shared_options->host_url;
-    tool_options[5] = shared_options->version;
-    tool_options[6] = shared_options->species;
-    
-    tool_options[7] = shared_options->max_batches;
-    tool_options[8] = shared_options->batch_lines;
-    tool_options[9] = shared_options->batch_bytes;
-    tool_options[10] = shared_options->num_threads;
-    
-    tool_options[11] = shared_options->num_alleles;
-    tool_options[12] = shared_options->coverage;
-    tool_options[13] = shared_options->quality;
-    tool_options[14] = shared_options->region;
-    tool_options[15] = shared_options->region_file;
-    tool_options[16] = shared_options->snp;
-    
-    tool_options[17] = shared_options->config_file;
-    tool_options[18] = shared_options->mmap_vcf_files;
-    
-    tool_options[19] = haplo_opts->alleleref;
-    tool_options[20] = haplo_opts->hwcut;
-    tool_options[21] = haplo_opts->fgcut;
-    tool_options[22] = haplo_opts->mendcut;
-    tool_options[23] = haplo_opts->mafcut;
-               
-    tool_options[24] = arg_end;
-    
-    return tool_options;
 }
 
 
 haplo_options_t *new_haplo_cli_options(void) {
     haplo_options_t *options = (haplo_options_t*) malloc (sizeof(haplo_options_t));
     options->alleleref = arg_int0(NULL, "alleleref", NULL, "Determine which algorithm will be used to count the alleles");
-    options->hwcut = arg_dbl0(NULL, "hwcut", NULL, "Hw cut");
+    options->hwcut = arg_dbl0(NULL, "hwcut", NULL, "Hardy-Weinberg cut");
     options->fgcut = arg_int0(NULL, "fgcut", NULL, "Failed genotype cut");
-    options->mendcut = arg_int0(NULL, "mendcut", NULL, " Number of mendelian errors for cutting");
-    options->mafcut = arg_dbl0(NULL, "mafcut", NULL, "Limit for the minor allele frequency when cutting");
-    options->num_opts = NUM_HAPLO_OPTS;
+    options->mendcut = arg_int0(NULL, "mendcut", NULL, "Maximum number of mendelian errors in a variant");
+    options->mafcut = arg_dbl0(NULL, "mafcut", NULL, "Limit for the minor allele frequency in a variant");
+    options->num_options = NUM_HAPLO_OPTS;
     return options;
 }
 
@@ -271,7 +138,6 @@ haplo_options_data_t *new_haplo_options_data(haplo_options_t *options) {
     options_data->mafcut = *(options->mafcut->dval);
     return options_data;
 }
-
 
 void free_haplo_options(haplo_options_t *options_data) {
     free(options_data);
