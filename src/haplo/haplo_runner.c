@@ -20,6 +20,10 @@
 
 #include "haplo_runner.h"
 
+static void write_output_header(FILE *fd);
+static void write_output_body(list_t* output_list, FILE *fd);
+
+
 int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_options_data_t *options_data) {
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
@@ -30,19 +34,19 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-/*
-    ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
-    if (!ped_file) {
-        LOG_FATAL("PED file does not exist!\n");
+    ped_file_t *ped_file = NULL;
+    if (shared_options_data->ped_filename) {
+        ped_file = ped_open(shared_options_data->ped_filename);
+        if (!ped_file) {
+            LOG_FATAL("PED file does not exist!\n");
+        }
+        LOG_INFO("About to read PED file...\n");
+        // Read PED file before doing any processing
+        ret_code = ped_read(ped_file);
+        if (ret_code != 0) {
+            LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
     }
-    
-    LOG_INFO("About to read PED file...\n");
-    // Read PED file before doing any processing
-    ret_code = ped_read(ped_file);
-    if (ret_code != 0) {
-        LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
-    }
-*/
     
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
@@ -84,13 +88,11 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
             omp_set_nested(1);
             
             volatile int initialization_done = 0;
+            
             // Pedigree information
-/*
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
-*/
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -143,12 +145,12 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
-/*
-                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                        sample_ids = associate_samples_and_positions(vcf_file);
-                        // Sort individuals in PED as defined in the VCF file
-                        individuals = sort_individuals(vcf_file, ped_file);
-*/
+                        if (ped_file) {
+                            // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                            sample_ids = associate_samples_and_positions(vcf_file);
+                            // Sort individuals in PED as defined in the VCF file
+                            individuals = sort_individuals(vcf_file, ped_file);
+                        }
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -184,10 +186,8 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
-/*
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
-*/
-                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
+                // TODO - Make this call compatible with variable grouping
+                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, 0, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Get markers from this batch
                     // TODO - use data structures from our API
@@ -248,11 +248,9 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
                 free(filters);
             }
             
-/*
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (individuals) { free(individuals); }
             free(families);
-*/
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -300,9 +298,7 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
     
     free(output_list);
     vcf_close(vcf_file);
-/*
-    ped_close(ped_file, 1);
-*/
+    ped_close(ped_file, 1, 1);
     
     return ret_code;
 }
@@ -312,14 +308,14 @@ int run_haplotyes_calculation(shared_options_data_t* shared_options_data, haplo_
  * Output generation *
  * *******************/
 
-void write_output_header(FILE *fd) {
+static void write_output_header(FILE *fd) {
     assert(fd);
 /*
     fprintf(fd, "#CHR         POS               ID      A1      A2         T       U           OR           CHISQ         P-VALUE\n");
 */
 }
 
-void write_output_body(list_t* output_list, FILE *fd) {
+static void write_output_body(list_t* output_list, FILE *fd) {
     assert(fd);
 /*
     list_item_t* item = NULL;

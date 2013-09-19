@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     // If no arguments or only -h / --help are provided, show usage
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_haplo_options(haplo_options, shared_options, arg_end(haplo_options->num_options + shared_options->num_options));
-        show_usage(argv[0], argtable, 32);
+        show_usage(argv[0], argtable);
         arg_freetable(argtable, 32);
         return 0;
     } else if (!strcmp(argv[1], "--version")) {

@@ -41,7 +41,9 @@ progs = SConscript(['src/effect/SConscript',
             'src/vcf-tools/SConscript'
             ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
 
-inst = env.Install('#bin', ['hpg-variant.conf', 'vcf-info-fields.conf'] + list(progs))
+inst1 = env.Install('#bin', [Glob('etc/hpg-variant/*.conf')] + list(progs))
+inst2 = env.Install('#bin/bash_completion', [Glob('etc/bash_completion.d/*')])
+
 
 # Run tests
 t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'] )
@@ -50,13 +52,14 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.99.2',
+                VERSION        = '0.99.4',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
                              [ '#buildaux.py', '#libs/bioinfo-libs/buildvars.py',
                                '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
-                               '#COPYING', '#INSTALL' ] )
+                               Glob('etc/hpg-variant/*.conf'), Glob('etc/bash_completion.d/*'),
+                               '#COPYING', '#README' ] )
 Alias('tarball', tb)
   
 # Create Debian package
@@ -72,4 +75,4 @@ if 'fedora' in COMMAND_LINE_TARGETS:
 
 
 # By default, create only the executables and install them
-Default(progs, inst)
+Default(progs, inst1, inst2)

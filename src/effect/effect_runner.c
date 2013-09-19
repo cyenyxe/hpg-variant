@@ -134,7 +134,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             
             // Pedigree information (used in some filters)
-            individual_t **individuals;
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             // Filename structure outdir/vcfname.errors
@@ -403,6 +403,10 @@ static void parse_effect_response(int tid, char *output_directory, size_t output
            strncat(tmp_consequence_type, split_result[19], strlen(split_result[19]));
         } else {
             if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
+                for (int s = 0; s < num_columns; s++) {
+                    free(split_result[s]);
+                }
+                free(split_result);
                 continue;
             }
             

@@ -281,7 +281,7 @@ marker **get_markers(array_list_t *variants, const unsigned int num_samples,
         }// Else don't change anything
 
         file_stats_t *file_stats = file_stats_new();
-        get_variants_stats(&record, 1, NULL, NULL, output_list, file_stats);
+        get_variants_stats(&record, 1, NULL, NULL, 0, output_list, file_stats);
         list_item_t* item = list_remove_item(output_list);
         variant_stats_t *variant_stats = item->data_p;
         
