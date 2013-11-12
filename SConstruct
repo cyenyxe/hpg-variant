@@ -5,13 +5,16 @@ bioinfo_path = '#libs/bioinfo-libs'
 commons_path = '#libs/common-libs'
 math_path = '#libs/math'
 
-env = Environment(tools = ['default', 'packaging'],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
+#env = Environment(tools = ['default', 'packaging' ],
+#                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
+env = Environment(tools = ['default', 'packaging', 'intelc' ],
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -openmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
-                  LINKFLAGS = ['-fopenmp'])
+#                  LINKFLAGS = ['-fopenmp'])
+                  LINKFLAGS = ['-openmp'])
 
 mode = 'single'
 if ARGUMENTS.get('mode', '') == 'mpi':
@@ -22,7 +25,7 @@ if ARGUMENTS.get('mode', '') == 'mpi':
 
 if int(ARGUMENTS.get('debug', '0')) == 1:
     debug = 1
-    env['CFLAGS'] += ' -O0 -g'
+    env['CFLAGS'] += ' -O1 -g'
 else:
     debug = 0
     env['CFLAGS'] += ' -O3 -g'
@@ -30,7 +33,8 @@ else:
 env['objects'] = []
 
 # bioinfo-libs compilation
-compiler = 'gcc'
+compiler = '/opt/intel/composer_xe_2013/bin/icc'
+#compiler = 'gcc'
 
 ##### Targets
 
