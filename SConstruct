@@ -5,22 +5,22 @@ bioinfo_path = '#libs/bioinfo-libs'
 commons_path = '#libs/common-libs'
 math_path = '#libs/math'
 
-#env = Environment(tools = ['default', 'packaging' ],
-#                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
-env = Environment(tools = ['default', 'packaging', 'intelc' ],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -openmp',
+#env = Environment(tools = ['default', 'packaging', 'intelc' ],
+env = Environment(CC='/opt/intel/composerxe/bin/icc',
+                  tools = ['default', 'packaging' ],
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
-                             '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
-                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
+                             '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include' ],
+                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib', '/opt/intel/composerxe/lib/intel64/', '/opt/intel/composerxe/lib/mic/' ],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
 #                  LINKFLAGS = ['-fopenmp'])
                   LINKFLAGS = ['-openmp'])
 
-mode = 'single'
-if ARGUMENTS.get('mode', '') == 'mpi':
+mode = ARGUMENTS.get('mode', 'single') 
+if mode == 'mpi':
     env['CFLAGS'] += ' -D_USE_MPI'
     env['LIBS'] += ['mpi']
-    mode = 'mpi'
+
 
 
 if int(ARGUMENTS.get('debug', '0')) == 1:
@@ -33,7 +33,7 @@ else:
 env['objects'] = []
 
 # bioinfo-libs compilation
-compiler = '/opt/intel/composer_xe_2013/bin/icc'
+compiler = '/opt/intel/composerxe/bin/icc'
 #compiler = 'gcc'
 
 ##### Targets
@@ -59,7 +59,7 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.99.2',
+                VERSION        = '2.0',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 

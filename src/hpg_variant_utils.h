@@ -114,6 +114,7 @@ void show_usage(char *tool, void **argtable, int num_arguments);
  */
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
 
+__attribute__ (( target(mic) ))
 int compare_int(const void *a, const void *b);
 
 #endif
