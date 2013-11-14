@@ -8,10 +8,11 @@ math_path = '#libs/math'
 #env = Environment(tools = ['default', 'packaging', 'intelc' ],
 env = Environment(CC='/opt/intel/composerxe/bin/icc',
                   tools = ['default', 'packaging' ],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
+                  #CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -openmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include' ],
-                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib', '/opt/intel/composerxe/lib/intel64/', '/opt/intel/composerxe/lib/mic/' ],
+                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib' ],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
 #                  LINKFLAGS = ['-fopenmp'])
                   LINKFLAGS = ['-openmp'])
@@ -20,6 +21,9 @@ mode = ARGUMENTS.get('mode', 'single')
 if mode == 'mpi':
     env['CFLAGS'] += ' -D_USE_MPI'
     env['LIBS'] += ['mpi']
+elif mode == 'mic':
+    env['CFLAGS'] += ' -D_USE_MIC'
+    env['LIBPATH'] += [ '/opt/intel/composerxe/lib/intel64/', '/opt/intel/composerxe/lib/mic/' ]
 
 
 

@@ -2,15 +2,8 @@ Import('env mode commons_path bioinfo_path math_path')
 
 
 if mode == 'single':
-    #prog = env.Program('hpg-var-gwas', 
-                #source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/*.c'), Glob('epistasis/singlenode/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
-                        #"%s/libcommon.a" % commons_path,
-                        #"%s/libbioinfo.a" % bioinfo_path,
-                        #"%s/libhpgmath.a" % math_path
-                        #]
-            #)
     prog = env.Program('hpg-var-gwas', 
-                source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/intelmic/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
+                source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/*.c'), Glob('epistasis/singlenode/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
                         "%s/libcommon.a" % commons_path,
                         "%s/libbioinfo.a" % bioinfo_path,
                         "%s/libhpgmath.a" % math_path
@@ -26,5 +19,13 @@ elif mode == 'mpi':
                         ]
             )
 
+elif mode == 'mic':
+    prog = env.Program('hpg-var-gwas', 
+                source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/intelmic/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
+                        "%s/libcommon.a" % commons_path,
+                        "%s/libbioinfo.a" % bioinfo_path,
+                        "%s/libhpgmath.a" % math_path
+                        ]
+            )
 
 Return("prog")
