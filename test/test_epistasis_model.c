@@ -76,22 +76,22 @@ START_TEST(test_get_masks) {
      print_gt_combination(mask_3, 3, 3 * num_samples_with_padding);
 */
 
-    for (int j = 0; j < num_samples; j++) {
+    for (int j = 0; j < num_samples_with_padding; j++) {
         sprintf(msg, "Mask SNP0: %d should be %d\n", j, mask_0[j]);
         fail_if(masks[j] != mask_0[j], msg);
     }
     
-    for (int j = 0; j < num_samples; j++) {
+    for (int j = 0; j < num_samples_with_padding; j++) {
         sprintf(msg, "Mask SNP1: %d should be %d\n", j, mask_1[j]);
         fail_if(masks[num_samples_with_padding * 3 + j] != mask_1[j], msg);
     }
     
-    for (int j = 0; j < num_samples; j++) {
+    for (int j = 0; j < num_samples_with_padding; j++) {
         sprintf(msg, "Mask SNP2: %d should be %d\n", j, mask_2[j]);
         fail_if(masks[num_samples_with_padding * 6 + j] != mask_2[j], msg);
     }
     
-    for (int j = 0; j < num_samples; j++) {
+    for (int j = 0; j < num_samples_with_padding; j++) {
         sprintf(msg, "Mask SNP3: %d should be %d\n", j, mask_3[j]);
         fail_if(masks[num_samples_with_padding * 9 + j] != mask_3[j], msg);
     }

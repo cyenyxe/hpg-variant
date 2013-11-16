@@ -33,10 +33,10 @@
 
 #include <commons/log.h>
 #include <containers/array_list.h>
+#include <containers/heap.h>
 #include <containers/linked_list.h>
 
 #include "dataset.h"
-#include "heap.h"
 #include "mdr.h"
 
 #define NUM_GENOTYPES           3
@@ -109,7 +109,6 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                                   uint8_t **genotype_permutations, uint8_t *masks, masks_info info, 
                                   int *counts_aff, int *counts_unaff);
 
-__attribute__ (( target(mic) ))
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
 
 
@@ -155,17 +154,13 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
                          compare_risky_heap_func priority_func);
 
-__attribute__ (( target(mic) ))
+
 int compare_risky_heap_count_max(struct heap_node* a, struct heap_node* b);
 
-__attribute__ (( target(mic) ))
 int compare_risky_heap_count_min(struct heap_node* a, struct heap_node* b);
 
-__attribute__ (( target(mic) ))
 int compare_risky_heap_accuracy_max(struct heap_node* a, struct heap_node* b);
 
-__attribute__ (( target(mic) ))
 int compare_risky_heap_accuracy_min(struct heap_node* a, struct heap_node* b);
 
 #endif
-

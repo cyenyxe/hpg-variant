@@ -34,22 +34,23 @@ KHASH_MAP_INIT_INT(cvc, int);
 
 START_TEST (test_get_high_risk_combinations) {
     int num_counts = 8, num_risky = 0;
-    int counts[] = { 8, 40, 4, 75, 9, 20, 8, 63 } ;
+    int counts[] = { 8, 40, 1, 2, 9, 20, 8, 63 } ;
     int num_affected = 10, num_unaffected = 80;
     
-    int *combinations = choose_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
+    int *combinations = choose_high_risk_combinations(counts, counts + num_counts / 2, 4, 
+                                                      num_affected, num_unaffected, 
                                                       &num_risky, NULL, mdr_high_risk_combinations);
     
     fail_if(num_risky != 3, "There should be 3 risky combination");
     fail_if(combinations[0] != 0, "Combination 0 (zero) should be risky");
-    fail_if(combinations[1] != 2, "Combination 2 should be risky");
-    fail_if(combinations[2] != 3, "Combination 3 should be risky");
+    fail_if(combinations[1] != 1, "Combination 1 should be risky");
+    fail_if(combinations[2] != 2, "Combination 2 should be risky");
 }
 END_TEST
 
 START_TEST (test_get_high_risk_combinations2) {
     int num_counts = 5, num_counts_with_padding = 16;
-    int counts_aff[] = { 8, 4, 9, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } ;
+    int counts_aff[] = { 5, 4, 9, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } ;
     int counts_unaff[] = { 40, 75, 20, 63, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } ;
     unsigned int num_affected = 10, num_unaffected = 80;
     
