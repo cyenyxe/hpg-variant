@@ -31,12 +31,32 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
         unsigned int num_risky[info.num_combinations_in_a_row];
         memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
 
+/*
         int *risky_idx = choose_high_risk_combinations2(counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
                                                         counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
                                                         info.num_combinations_in_a_row, info.num_cell_counts_per_combination,
                                                         info.num_affected, info.num_unaffected,
                                                         num_risky, &aux_info, mdr_high_risk_combinations2);
+*/
 
+        int *risky_idx = calloc(info.num_combinations_in_a_row * info.num_cell_counts_per_combination, sizeof(int));
+        memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
+        int total_risky = 0;
+        
+        for (int c = 0; c < num_combinations; c++) {
+            int *comb_risky_idx = choose_high_risk_combinations(
+                                                        counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination 
+                                                                   + c * info.num_cell_counts_per_combination,
+                                                        counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination 
+                                                                   + c * info.num_cell_counts_per_combination,
+                                                        info.num_cell_counts_per_combination, info.num_affected, info.num_unaffected,
+                                                        num_risky + c, &aux_info, mdr_high_risk_combinations);
+            
+            memcpy(risky_idx + total_risky, comb_risky_idx, num_risky[c] * sizeof(int));
+            total_risky += num_risky[c];
+            free(comb_risky_idx);
+        }
+        
 /*
         printf("num risky = { ");
         for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
@@ -45,12 +65,12 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
         printf("}\n");
 
         printf("risky gts = { ");
-        for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_counts_per_combination; rc++) {
+        for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_cell_counts_per_combination; rc++) {
             printf("%d ", risky_idx[rc]);
         }
         printf("}\n");
 */
-
+        
         int risky_begin_idx = 0;
         for (int rc = 0; rc < num_combinations; rc++) {
             int *comb = combs + rc * order;
