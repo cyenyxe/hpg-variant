@@ -92,7 +92,8 @@ void free_filtered_records(array_list_t *passed_records, array_list_t *failed_re
  *         Output        *
  * ***********************/
 
-FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_name, char **path);
+__attribute__ (( target(mic) ))
+FILE *get_output_file(char *output_directory, char *output_filename, char *default_name, char **path);
 
 
 /* ***********************
@@ -114,9 +115,7 @@ void show_usage(char *tool, void **argtable, int num_arguments);
  */
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
 
-#ifdef _USE_MIC
 __attribute__ (( target(mic) ))
-#endif
 int compare_int(const void *a, const void *b);
 
 #endif

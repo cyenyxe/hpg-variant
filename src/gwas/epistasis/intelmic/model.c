@@ -97,7 +97,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
                          _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
 
-            //LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
+            ////LOG_DEBUG_F(, "aff comb idx (%d) = %d\n", c, count / 8);
             counts_aff[rc * info.num_cell_counts_per_combination + c] = count / 8;
 
             count = 0;
@@ -117,24 +117,20 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
                          _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
 
-            //LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
+            ////LOG_DEBUG_F(, "unaff comb idx (%d) = %d\n", c, count / 8);
             counts_unaff[rc * info.num_cell_counts_per_combination + c] = count / 8;
         }
     }*/
 }
 
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
-                                  uint8_t **genotype_permutations, uint8_t *masks, masks_info info, 
+                                  uint8_t *genotype_permutations, uint8_t *masks, masks_info info, 
                                   int *counts_aff, int *counts_unaff) {
     uint8_t *permutation;
     int count[num_folds], flag = 1;
-
     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-        uint8_t *rc_masks = masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
+       uint8_t *rc_masks = masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
         for (int c = 0; c < info.num_cell_counts_per_combination; c++) {
-            permutation = genotype_permutations[c];
-            // print_gt_combination(permutation, c, order);
-            
             memset(count, 0, num_folds * sizeof(int));
 
             for (int f = 0; f < num_folds; f++) {
@@ -143,14 +139,14 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     if (!fold_masks[f * info.num_samples_with_padding + i]) { continue; }
                     flag = 1;
                     for (int j = 0; j < order && flag; j++) {
-                        flag &= rc_masks[j * NUM_GENOTYPES * info.num_samples_with_padding + permutation[j] * info.num_samples_with_padding + i];
+                        flag &= rc_masks[j * NUM_GENOTYPES * info.num_samples_with_padding + genotype_permutations[c * order + j] * info.num_samples_with_padding + i];
                     }
                     if (flag) {
                         count[f]++;
                     }
                 }
                 
-                LOG_DEBUG_F("%d) aff comb idx (%d) = %d\n", f, c, count[f]);
+                //LOG_DEBUG_F(, "%d) aff comb idx (%d) = %d\n", f, c, count[f]);
                 counts_aff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination +
                            rc * info.num_cell_counts_per_combination + c] = count[f];
             }
@@ -163,7 +159,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     if (!fold_masks[f * info.num_samples_with_padding + info.num_affected_with_padding + i]) { continue; }
                     flag = 1;
                     for (int j = 0; j < order && flag; j++) {
-                        flag &= rc_masks[j * NUM_GENOTYPES * info.num_samples_with_padding + permutation[j] * info.num_samples_with_padding +
+                        flag &= rc_masks[j * NUM_GENOTYPES * info.num_samples_with_padding + genotype_permutations[c * order + j] * info.num_samples_with_padding +
                                 info.num_affected_with_padding + i];
                     }
                     if (flag) {
@@ -171,7 +167,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     }
                 }
                 
-                LOG_DEBUG_F("%d) unaff comb idx (%d) = %d\n", f, c, count[f]);
+                //LOG_DEBUG_F(, "%d) unaff comb idx (%d) = %d\n", f, c, count[f]);
                 counts_unaff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination +
                            rc * info.num_cell_counts_per_combination + c] = count[f];
             }
@@ -249,7 +245,7 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
     return risky;
 }
 
-risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+risky_combination* risky_combination_new(int order, int comb[order], uint8_t *possible_genotypes_combinations, 
                                          int num_risky, int* risky_idx, void *aux_info, masks_info info) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
@@ -263,13 +259,14 @@ risky_combination* risky_combination_new(int order, int comb[order], uint8_t** p
     memcpy(risky->combination, comb, order * sizeof(int));
     
     for (int i = 0; i < num_risky; i++) {
-        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
+        //memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
+        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations + risky_idx[i] * order, order * sizeof(uint8_t));    
     }
-    
+
     return risky;
 }
 
-risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+risky_combination* risky_combination_copy(int order, int comb[order], uint8_t *possible_genotypes_combinations, 
                                           int num_risky, int* risky_idx, void *aux_info, risky_combination* risky) {
     assert(risky);
     risky->num_risky_genotypes = num_risky;
@@ -278,7 +275,8 @@ risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** 
     
     memcpy(risky->combination, comb, order * sizeof(int));
     for (int i = 0; i < num_risky; i++) {
-        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
+        //memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
+        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations + risky_idx[i] * order, order * sizeof(uint8_t));
     }
     
     return risky;
@@ -300,6 +298,7 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes,
                   masks_info info, unsigned int *conf_matrix) {
     // Get the matrix containing {FP,FN,TP,TN}
     confusion_matrix(order, risky_comb, genotypes, fold_masks, subset, training_size, testing_size, info, conf_matrix);
+//    printf("matrix { %d, %d, %d, %d }\n", conf_matrix[0], conf_matrix[1], conf_matrix[2], conf_matrix[3]);
 
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(conf_matrix, BA);
@@ -334,13 +333,13 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
         for (int k = 0; k < num_samples; k++) {
-            confusion_masks[i * num_samples + k] = (combination->genotypes[i * order] == genotypes[0][k]);
+            confusion_masks[i * num_samples + k] = (combination->genotypes[i * order] == genotypes[0][k]) ? 255 : 0;
         }
         
         // Next SNPs in the combination
         for (int j = 1; j < order; j++) {
             for (int k = 0; k < num_samples; k++) {
-                confusion_masks[i * num_samples + k] &= (combination->genotypes[i * order + j] == genotypes[j][k]);
+                confusion_masks[i * num_samples + k] &= (combination->genotypes[i * order + j] == genotypes[j][k]) ? 255 : 0;
             }
         }
         
@@ -356,7 +355,7 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
     for (int j = 0; j < combination->num_risky_genotypes; j++) {
         printf(" comb %d = { ", j);
         for (int k = 0; k < num_samples; k++) {
-            printf("%3d ", confusion_masks[j * num_samples + k]);
+            printf("%03d ", confusion_masks[j * num_samples + k]);
         }
         printf("}\n");
     }
@@ -459,7 +458,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, st
         }
 
         if (current_ranking_size < max_ranking_size) {
-            //LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
+            ////LOG_DEBUG_F(, "To insert %.3f at the end", risky_comb->accuracy);
             struct heap_node *hn = malloc (sizeof(struct heap_node));
             heap_node_init(hn, risky_comb);
             heap_insert(priority_func, ranking_risky, hn);

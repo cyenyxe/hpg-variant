@@ -57,8 +57,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int num_genotype_permutations;
     uint8_t **genotype_permutations = get_genotype_combinations(order, &num_genotype_permutations);
     
-    // Ranking of best models in each repetition
-    struct heap *best_models[options_data->num_cv_repetitions];
+//    // Ranking of best models in each repetition
+//    struct heap *best_models[options_data->num_cv_repetitions];
     
     compare_risky_heap_func heap_max_func = NULL;
     compare_risky_heap_func heap_min_func = NULL;
@@ -75,20 +75,31 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
    
     // Variables to offload to the MIC
+    char *outputDirectory = shared_options_data->output_directory;
+    char *outputFilename = shared_options_data->output_filename;
+    size_t outputDirectoryLen = strlen(outputDirectory);
+    size_t outputFilenameLen = strlen(outputFilename);
     int nThreads = shared_options_data->num_threads;
+    int rankingSize = options_data->max_ranking_size;
     enum evaluation_mode evalMode = options_data->eval_mode;
+    enum evaluation_subset evalSubset = options_data->eval_subset;
+    uint8_t *genotypePermutations = malloc(num_genotype_permutations * order * sizeof(uint8_t));
+    for (int i = 0; i < num_genotype_permutations; i++) {
+       memcpy(genotypePermutations + order * i, genotype_permutations[i], order * sizeof(uint8_t));
+    }
  
     /**************************** End of variables precalculus  ****************************/
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
         LOG_INFO_F("Running cross-validation #%d...\n", r+1);
-#pragma offload target (mic) in(genotypes : length(file_len - genotypes_offset)) \
-                             in(genotype_permutations : length(num_genotype_permutations * order)) \
-                             in(nThreads) in(evalMode)
-    {
-//        omp_set_num_threads(240); 
 
+#pragma offload target (mic) in(genotypes : length(file_len - genotypes_offset)) \
+                             in(genotypePermutations : length(num_genotype_permutations * order)) \
+                             in(outputDirectory : length(outputDirectoryLen)) \
+                             in(outputFilename : length(outputFilenameLen)) \
+                             in(nThreads) in(rankingSize) in(evalMode) in(evalSubset)
+    {
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *testing_sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, num_folds, &testing_sizes);
@@ -171,6 +182,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             // Buffer for genotypes masks
             uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+//            if (omp_get_thread_num() < 10) { printf("Masks in thread #%d = %d\n", omp_get_thread_num(), info.num_combinations_in_a_row * info.num_masks); }
 
             // Functions for ranking combinations
             compare_risky_heap_func heap_max_func_local = NULL;
@@ -194,7 +206,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 block_starts[s] = genotypes + my_block_coords[s] * stride * num_samples;
             }
 
-/*
             // Initialize first coordinate (only if it's different from the previous)
             block_genotypes[0] = get_genotypes_of_block_coord(num_variants, num_samples, info, stride,
                                                               my_block_coords[0], block_starts[0], scratchpad[0]);
@@ -218,8 +229,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                                                       my_block_coords[m], block_starts[m], scratchpad[m]);
                 }
             }
-*/
-
 
 //            printf("padded block (%d*%d) = {\n", stride, info.num_samples_with_padding);
 //            for (int m = 0; m < MIN(stride, num_variants); m++) {
@@ -250,7 +259,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Test first combination in the block
             get_first_combination_in_block(order, comb, my_block_coords, stride);
 
-/*
             do {
                 memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
                 cur_comb_idx++;
@@ -260,10 +268,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
 
                 process_set_of_combinations(info.num_combinations_in_a_row, combs, order, stride, num_folds, fold_masks,
-                                            training_sizes, testing_sizes,  block_genotypes, genotype_permutations,
-                                            masks, options_data->eval_subset, info, 
+                                            training_sizes, testing_sizes,  block_genotypes, genotypePermutations,
+                                            masks, evalSubset, info, 
                                             heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
-                                            options_data->max_ranking_size, ranking_risky_local);
+                                            rankingSize, ranking_risky_local);
                 
                 cur_comb_idx = 0;
             } while (get_next_combination_in_block(order, comb, my_block_coords, stride, num_variants));
@@ -271,10 +279,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             
             // Process combinations out of a full set
             process_set_of_combinations(cur_comb_idx, combs, order, stride, num_folds, fold_masks,
-                                        training_sizes, testing_sizes, block_genotypes, genotype_permutations,
-                                        masks, options_data->eval_subset, info, 
+                                        training_sizes, testing_sizes, block_genotypes, genotypePermutations,
+                                        masks, evalSubset, info, 
                                         heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
-                                        options_data->max_ranking_size, ranking_risky_local);
+                                        rankingSize, ranking_risky_local);
 
             // Insert best model of this block in the global ranking (critical section)
             for (int i = 0; i < num_folds; i++) {
@@ -286,7 +294,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     
 #pragma omp critical
                     {
-                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], heap_min_func_local);
+                        position = add_to_model_ranking(risky_comb, rankingSize, ranking_risky[i], heap_min_func_local);
                     }
                     if (position < 0) {
                         risky_combination_free(risky_comb);
@@ -303,7 +311,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
-*/
 
             // Notify a block has been processed
             char end_block_msg[256]; memset(end_block_msg, 0, 256 * sizeof(char));
@@ -319,8 +326,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             printf(end_block_msg);
         }
         
-/*
-        for (int f = 0; f < num_folds; f++) {
+
+/*        for (int f = 0; f < num_folds; f++) {
             printf("Ranking fold %d = {\n", f);
             risky_combination *element = NULL;
             linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[f]);
@@ -331,18 +338,19 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             linked_list_iterator_free(iter);
             printf("\n\n");
         }
-*/
-/*        
-        // Merge all rankings in one
-        best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
+exit(0);*/
         
+        // Merge all rankings in one
+        //best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
+        struct heap *best_models = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
         // Show the best model of this repetition
         char *path, default_path[32];
         sprintf(default_path, "hpg-variant.cv%d.epi", r+1);
-        FILE *fd = get_output_file(shared_options_data, default_path, &path);
-        epistasis_report(order, r, options_data->eval_mode, options_data->eval_subset, best_models[r], options_data->max_ranking_size, heap_max_func, fd);
-        fclose(fd);
-*/        
+        FILE *fd = get_output_file(outputDirectory, outputFilename, default_path, &path);
+        //epistasis_report(order, r, evalMode, evalSubset, best_models[r], rankingSize, heap_max_func, fd);
+        epistasis_report(order, r, evalMode, evalSubset, best_models, rankingSize, heap_max_func, fd);
+        close(fd);
+        
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
             free(folds[i]);
@@ -354,6 +362,14 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(testing_sizes);
         free(training_sizes);
         _mm_free(fold_masks);
+
+        struct heap_node *hn;
+        risky_combination *element = NULL;
+        while (!heap_empty(best_models)) {
+            hn = heap_take(heap_max_func, best_models);
+            risky_combination_free((risky_combination*) hn->value);
+            free(hn);
+        }
     }
     }
     
@@ -362,7 +378,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(genotype_permutations[i]);
     }
     free(genotype_permutations);
-    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+    free(genotypePermutations);
+/*    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
         struct heap_node *hn;
         risky_combination *element = NULL;
 
@@ -371,7 +388,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             risky_combination_free((risky_combination*) hn->value);
             free(hn);
         }
-    }
+    }*/
     epistasis_dataset_close(input_file, file_len);
     
     return ret_code;

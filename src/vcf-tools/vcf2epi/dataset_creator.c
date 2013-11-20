@@ -174,7 +174,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
             
             char *filename;
-            FILE *fp = get_output_file(shared_options_data, "epistasis_dataset.bin", &filename);
+            FILE *fp = get_output_file(shared_options_data->output_directory, shared_options_data->output_filename, "epistasis_dataset.bin", &filename);
             
             double start = omp_get_wtime();
             
@@ -211,6 +211,40 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             if (!fwrite(&num_variants, sizeof(size_t), 1, fp)) {
                 LOG_ERROR("The number of variants in the dataset could not be written!");
             }
+            
+            
+            /* Write cuGWAM dataset (one sample per line) */
+            size_t file_len;
+            char *filename_2;
+            FILE *cugwam_fp = get_output_file(shared_options_data->output_directory, shared_options_data->output_filename, "cugwam_dataset.txt", &filename_2);
+            size_t genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+            uint8_t *input_file = mmap_file(&file_len, filename);
+            uint8_t *genotypes = input_file + genotypes_offset;
+            
+            fprintf(cugwam_fp, "Class\t");
+            for (int j = 0; j < num_variants; j++) {
+                fprintf(cugwam_fp, "X%d\t", j);
+            }
+            fprintf(cugwam_fp, "\n");
+            
+            for (int i = 0; i < num_samples; i++) {
+                if (i < num_affected) {
+                    fprintf(cugwam_fp, "1\t");
+                } else {
+                    fprintf(cugwam_fp, "0\t");
+                }
+                
+                for (int j = 0; j < num_variants; j++) {
+                    //printf("j = %d\n", j);
+                    fprintf(cugwam_fp, "%d\t", genotypes[j * num_samples + i]);
+                }
+                fprintf(cugwam_fp, "\n");
+            }
+            
+            fclose(cugwam_fp);
+            munmap((void*) input_file, file_len);
+            /* End write cuGWAM dataset (one sample per line) */
+            
             
             fclose(fp);
     

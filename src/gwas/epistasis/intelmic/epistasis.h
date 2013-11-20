@@ -153,16 +153,19 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
  *               Epistasis execution            *
  * **********************************************/
 
+__attribute__ (( target(mic) ))
 void process_set_of_combinations(int num_combinations, int *combs, int order, int stride, 
                                  int num_folds, uint8_t *fold_masks, int *training_sizes, int *testing_sizes,
-                                 uint8_t **block_genotypes, uint8_t **genotype_permutations,
+                                 uint8_t **block_genotypes, uint8_t *genotype_permutations,
                                  uint8_t *masks, enum evaluation_subset subset, masks_info info, 
                                  compare_risky_heap_func cmp_heap_func,
                                  int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
                                  int max_ranking_size, struct heap **ranking_risky_local);
 
+__attribute__ (( target(mic) ))
 struct heap* merge_rankings(int num_folds, struct heap **ranking_risky, compare_risky_heap_func heap_min_func, compare_risky_heap_func heap_max_func);
 
+__attribute__ (( target(mic) ))
 int compare_risky(const void *risky_1, const void *risky_2);
 
 
@@ -170,6 +173,7 @@ int compare_risky(const void *risky_1, const void *risky_2);
  *                  Final report                *
  * **********************************************/
 
+__attribute__ (( target(mic) ))
 void epistasis_report(int order, int cv_repetition, enum evaluation_mode mode, enum evaluation_subset subset, 
                       struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
 

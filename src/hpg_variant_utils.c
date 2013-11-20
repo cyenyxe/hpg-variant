@@ -299,16 +299,15 @@ void free_filtered_records(array_list_t *passed_records, array_list_t *failed_re
  *         Output        *
  * ***********************/
 
-FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_name, char **path) {
-    char *output_directory = (shared_options_data->output_directory && strlen(shared_options_data->output_directory) > 0) ? 
-                              shared_options_data->output_directory : "." ;
-    char *output_filename = (shared_options_data->output_filename && strlen(shared_options_data->output_filename) > 0) ? 
-                             shared_options_data->output_filename : default_name;
+FILE *get_output_file(char *output_directory, char *output_filename, char *default_name, char **path) {
+    char *output_dir = (output_directory && strlen(output_directory) > 0) ? output_directory : "." ;
+    char *output_file = (output_filename && strlen(output_filename) > 0) ? output_filename : default_name;
     
-    *path = (char*) malloc ((strlen(output_directory) + strlen(output_filename) + 2) * sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, output_filename);
+    *path = (char*) malloc ((strlen(output_dir) + strlen(output_file) + 2) * sizeof(char));
+    sprintf(*path, "%s/%s", output_dir, output_file);
     
-    LOG_INFO_F("Output file will be saved in path %s\n", *path);
+    //LOG_INFO_F("Output file will be saved in path %s\n", *path);
+    printf("Output file will be saved in path %s\n", *path);
     
     return fopen(*path, "w");
 }

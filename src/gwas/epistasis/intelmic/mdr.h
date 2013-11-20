@@ -31,11 +31,16 @@
 
 #include <commons/log.h>
 
+
+#pragma offload_attribute(push, target(mic))
+
 bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_unaffected, 
                                 unsigned int samples_affected, unsigned int samples_unaffected, void **aux_return_values);
 
-__attribute__ (( target(mic) ))
 int *mdr_high_risk_combinations2(int *counts_affected, int *counts_unaffected, int num_counts,
                                  unsigned int num_affected, unsigned int num_unaffected,
                                  void **aux_return_values);
+
+#pragma offload_attribute(pop)
+
 #endif

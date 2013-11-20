@@ -299,7 +299,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             sprintf(aux_filename, "merge_from_%d_files.vcf", options_data->num_files);
             
             char *merge_filename;
-            FILE *merge_fd = get_output_file(shared_options_data, aux_filename, &merge_filename);
+            FILE *merge_fd = get_output_file(shared_options_data->output_directory, shared_options_data->output_filename, aux_filename, &merge_filename);
             LOG_INFO_F("Output filename = %s\n", merge_filename);
             free(merge_filename);
             

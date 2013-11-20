@@ -225,7 +225,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
+            FILE *fd = get_output_file(shared_options_data->output_directory, shared_options_data->output_filename, "hpg-variant.tdt", &path);
             LOG_INFO_F("TDT output filename = %s\n", path);
             
             double start = omp_get_wtime();

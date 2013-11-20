@@ -21,8 +21,9 @@ uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int 
                                                 int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
                                                 int stride, uint8_t **block_starts);
 
+__attribute__ (( target(mic) ))
 uint8_t *get_genotypes_of_block_coord(int num_variants, int num_samples, masks_info info,
-                                 int stride, int block_coord, uint8_t *block_start, uint8_t *genotypes);
+                                      int stride, int block_coord, uint8_t *block_start, uint8_t *genotypes);
 
 uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples, masks_info info, 
                                               int num_samples_in_fold, int fold_samples[num_samples_in_fold], 

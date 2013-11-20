@@ -3,7 +3,7 @@
 
 void process_set_of_combinations(int num_combinations, int *combs, int order, int stride, 
                                  int num_folds, uint8_t *fold_masks, int *training_sizes, int *testing_sizes,
-                                 uint8_t **block_genotypes, uint8_t **genotype_permutations,
+                                 uint8_t **block_genotypes, uint8_t *genotype_permutations,
                                  uint8_t *masks, enum evaluation_subset subset, masks_info info, 
                                  compare_risky_heap_func cmp_heap_func,
                                  int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
@@ -30,7 +30,6 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
         void *aux_info;
         unsigned int num_risky[info.num_combinations_in_a_row];
         memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
-
 /*
         int *risky_idx = choose_high_risk_combinations2(counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
                                                         counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
@@ -42,7 +41,7 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
         int *risky_idx = calloc(info.num_combinations_in_a_row * info.num_cell_counts_per_combination, sizeof(int));
         memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
         int total_risky = 0;
-        
+
         for (int c = 0; c < num_combinations; c++) {
             int *comb_risky_idx = choose_high_risk_combinations(
                                                         counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination 
@@ -54,9 +53,14 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
             
             memcpy(risky_idx + total_risky, comb_risky_idx, num_risky[c] * sizeof(int));
             total_risky += num_risky[c];
+
+/*            printf("risky (%d) = { ", num_risky[c]);
+            for (int r = 0; r < num_risky[c]; r++) {
+                printf("%d ", comb_risky_idx[r]);
+            }
+            printf("}\n");*/
             free(comb_risky_idx);
         }
-        
 /*
         printf("num risky = { ");
         for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
@@ -70,7 +74,7 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
         }
         printf("}\n");
 */
-        
+
         int risky_begin_idx = 0;
         for (int rc = 0; rc < num_combinations; rc++) {
             int *comb = combs + rc * order;
@@ -96,7 +100,7 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
                 // Check the model against the testing dataset
                 double accuracy = test_model(order, risky_comb, my_genotypes, fold_masks + f * info.num_samples_with_padding, subset, 
                                              training_sizes + 3 * f + 1, testing_sizes + 3 * f + 1, info, conf_matrix);
-//               printf("*  Balanced accuracy: %.3f\n", accuracy);
+//                printf("* [%d,%d]  Balanced accuracy: %.3f\n", risky_comb->combination[0], risky_comb->combination[1], accuracy);
 
                 int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky_local[f], cmp_heap_func);
 
@@ -132,16 +136,16 @@ struct heap* merge_rankings(int num_folds, struct heap **ranking_risky, compare_
             repetition_ranking[current_index] = element;
             current_index++;
             free(hn);
-
-//                printf("(%d ", element->combination[0]);
-//                for (int s = 1; s < order; s++) {
-//                    printf("%d ", element->combination[s]);
-//                }
-//                printf("- %.3f) ", element->accuracy);
+/*
+                printf("(%d ", element->combination[0]);
+                for (int s = 1; s < 2; s++) {
+                    printf("%d ", element->combination[s]);
+                }
+                printf("- %.3f) ", element->accuracy);
+*/
         }
-//            printf("}\n\n");
+/*            printf("}\n\n");*/
     }
-
     assert(current_index == repetition_ranking_size);
 
     // qsort by coordinates

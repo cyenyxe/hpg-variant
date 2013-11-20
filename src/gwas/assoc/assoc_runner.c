@@ -272,9 +272,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
 static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *global_options_data, char **path) {
     if (task == CHI_SQUARE) {
-        return get_output_file(global_options_data, "hpg-variant.chisq", path);
+        return get_output_file(global_options_data->output_directory, global_options_data->output_filename, "hpg-variant.chisq", path);
     } else if (task == FISHER) {
-        return get_output_file(global_options_data, "hpg-variant.fisher", path);
+        return get_output_file(global_options_data->output_directory, global_options_data->output_filename, "hpg-variant.fisher", path);
     } else {
         LOG_FATAL("Requested association test is not recognized as a valid test.");
     }

@@ -33,16 +33,19 @@
 
 #include <commons/log.h>
 #include <containers/array_list.h>
-#include <containers/heap.h>
-#include <containers/linked_list.h>
+//#include <containers/linked_list.h>
 
 #include "dataset.h"
+#include "heap.h"
 #include "mdr.h"
 
 #define NUM_GENOTYPES           3
 
 #define COMBINATIONS_ROW_SSE    16
 #define COMBINATIONS_ROW_GPU    128
+
+
+#pragma offload_attribute(push, target(mic))
 
 typedef int (*compare_risky_heap_func) (struct heap_node*, struct heap_node*);
 
@@ -106,7 +109,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
                         int *counts_aff, int *counts_unaff, masks_info info);
 
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
-                                  uint8_t **genotype_permutations, uint8_t *masks, masks_info info, 
+                                  uint8_t *genotype_permutations, uint8_t *masks, masks_info info, 
                                   int *counts_aff, int *counts_unaff);
 
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
@@ -128,10 +131,10 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
                                    bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 
-risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, 
+risky_combination *risky_combination_new(int order, int comb[order], uint8_t *possible_genotypes_combinations, 
                                          int num_risky, int *risky_idx, void *aux_info, masks_info info);
 
-risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+risky_combination* risky_combination_copy(int order, int comb[order], uint8_t *possible_genotypes_combinations, 
                                           int num_risky, int* risky_idx, void *aux_info, risky_combination* risky);
 
 void risky_combination_free(risky_combination *combination);
@@ -154,7 +157,6 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
                          compare_risky_heap_func priority_func);
 
-
 int compare_risky_heap_count_max(struct heap_node* a, struct heap_node* b);
 
 int compare_risky_heap_count_min(struct heap_node* a, struct heap_node* b);
@@ -163,4 +165,7 @@ int compare_risky_heap_accuracy_max(struct heap_node* a, struct heap_node* b);
 
 int compare_risky_heap_accuracy_min(struct heap_node* a, struct heap_node* b);
 
+#pragma offload_attribute(pop)
+
 #endif
+

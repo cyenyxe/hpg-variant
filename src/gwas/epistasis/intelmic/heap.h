@@ -61,7 +61,7 @@ struct heap {
  */
 typedef int (*heap_prio_t)(struct heap_node* a, struct heap_node* b);
 
-__attribute__ (( target(mic) ))
+#pragma offload_attribute(push, target(mic))
 static inline void heap_init(struct heap* heap)
 {
 	heap->head = NULL;
@@ -99,6 +99,7 @@ static inline int heap_node_in_heap(struct heap_node* h)
 {
 	return h->degree != NOT_IN_HEAP;
 }
+
 
 static inline int heap_empty(struct heap* heap)
 {
@@ -399,5 +400,7 @@ static inline void heap_delete(heap_prio_t higher_prio, struct heap* heap,
 	}
 	node->degree = NOT_IN_HEAP;
 }
+
+#pragma offload_attribute(pop)
 
 #endif /* HEAP_H */
